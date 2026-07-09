@@ -6,7 +6,7 @@ Fetch [models.dev](https://models.dev/) once. Add custom generators. Store the s
 
 ## Demo
 
-<video src="./_docs/demo.mp4" controls muted playsinline width="100%"></video>
+https://github.com/user-attachments/assets/5a18dfa0-2acb-48b8-a496-40ad1ee7fd26
 
 ## Why
 
