@@ -1,4 +1,5 @@
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
+import { createStore } from "solid-js/store"
 import { render } from "solid-js/web"
 import { createCatalog, refreshSnapshot, type Catalog, type CatalogSnapshot } from "model-catalog"
 import fallbackSnapshot from "../../catalog-snapshot.json"
@@ -17,11 +18,13 @@ const initialKeys: Record<string, string> = {
   openai: "sk-fake-openai",
   anthropic: "sk-fake-anthropic",
 }
+const initialEnabledProviderIds = new Set(Object.entries(initialKeys).filter(([, value]) => value.trim()).map(([providerId]) => providerId))
 
 function App() {
   const [catalog, setCatalog] = createSignal<Catalog>(initialCatalog)
   const [isRefreshing, setIsRefreshing] = createSignal(false)
-  const [apiKeys, setApiKeys] = createSignal<Record<string, string>>(initialKeys)
+  const [apiKeys, setApiKeys] = createStore<Record<string, string>>(initialKeys)
+  const [enabledProviderIds, setEnabledProviderIds] = createSignal<ReadonlySet<string>>(initialEnabledProviderIds)
   const [providerSearch, setProviderSearch] = createSignal("")
 
   const refreshCatalog = async () => {
@@ -38,16 +41,39 @@ function App() {
   }
 
   const providers = createMemo(() => catalog().listProviders())
-  const visibleProviders = createMemo(() => catalog().listProviders({ query: providerSearch() }))
-  const providerConfigs = createMemo<ProviderConfig[]>(() =>
-    providers().map((provider) => ({
-      id: provider.id,
-      provider: provider.id,
-      providerId: provider.id,
-      hasApiKey: Boolean(apiKeys()[provider.id]?.trim()),
-      isEnabled: true,
-    })),
+  const visibleProviders = createMemo(() => {
+    const query = normalizeSearch(providerSearch())
+    if (!query) return providers()
+    const tokens = query.split(/\s+/)
+
+    return providers().filter((provider) => {
+      const haystack = `${provider.id} ${provider.name} ${provider.provider.api ?? ""} ${provider.provider.doc ?? ""}`.toLowerCase()
+      return tokens.every((token) => haystack.includes(token))
+    })
+  })
+  const immediateProviderConfigs = createMemo<ProviderConfig[]>(
+    (previous) => {
+      const enabled = enabledProviderIds()
+      const next = providers().map((provider, index) => {
+        const hasApiKey = enabled.has(provider.id)
+        const current = previous?.[index]
+        if (current?.id === provider.id && current.hasApiKey === hasApiKey) return current
+
+        return {
+          id: provider.id,
+          provider: provider.id,
+          providerId: provider.id,
+          hasApiKey,
+          isEnabled: true,
+        }
+      })
+
+      if (previous && previous.length === next.length && next.every((provider, index) => provider === previous[index])) return previous
+      return next
+    },
+    [],
   )
+  const providerConfigs = immediateProviderConfigs
   const enabledProviders = createMemo(() =>
     providerConfigs()
       .filter((provider) => provider.hasApiKey)
@@ -66,19 +92,31 @@ function App() {
     return first ? { provider: first.providerId, modelId: first.modelId } : null
   })
   const [selectedModel, setSelectedModel] = createSignal<ChatModelValue | null>(firstAvailable())
+  const selectedProvider = createMemo(() => selectedModel()?.provider ?? null)
 
   createEffect(() => {
-    const selected = selectedModel()
-    const fallback = firstAvailable()
-    if (!selected && fallback) {
+    const provider = selectedProvider()
+    if (!provider) {
+      const fallback = firstAvailable()
+      if (!fallback) return
       setSelectedModel(fallback)
       return
     }
-    if (selected && !enabledProviders().includes(selected.provider)) setSelectedModel(fallback)
+    if (!enabledProviders().includes(provider)) setSelectedModel(firstAvailable())
   })
 
   const updateApiKey = (providerId: string, value: string) => {
-    setApiKeys((current) => ({ ...current, [providerId]: value }))
+    const wasEnabled = Boolean(apiKeys[providerId]?.trim())
+    const isEnabled = Boolean(value.trim())
+    setApiKeys(providerId, value)
+    if (wasEnabled !== isEnabled) {
+      setEnabledProviderIds((current) => {
+        const next = new Set(current)
+        if (isEnabled) next.add(providerId)
+        else next.delete(providerId)
+        return next
+      })
+    }
   }
 
   const enabledCount = () => enabledProviders().length
@@ -116,7 +154,7 @@ function App() {
             <div class="-mr-1 flex-1 space-y-1 overflow-y-auto pr-1">
               <For each={visibleProviders()}>
                 {(provider) => {
-                  const hasKey = () => Boolean(apiKeys()[provider.id]?.trim())
+                  const hasKey = () => Boolean(apiKeys[provider.id]?.trim())
                   return (
                     <label class="flex items-center gap-2">
                       <span class="flex w-28 shrink-0 items-center gap-1.5 text-xs text-zinc-600">
@@ -133,7 +171,7 @@ function App() {
                         <span class="truncate">{provider.name}</span>
                       </span>
                       <Input
-                        value={apiKeys()[provider.id] ?? ""}
+                        value={apiKeys[provider.id] ?? ""}
                         onInput={(event) => updateApiKey(provider.id, event.currentTarget.value)}
                         placeholder="fake key"
                         aria-label={`${provider.name} fake API key`}
@@ -186,6 +224,10 @@ function readSnapshot() {
 function writeSnapshot(snapshot: CatalogSnapshot) {
   if (typeof window === "undefined") return
   window.localStorage.setItem(snapshotStorageKey, JSON.stringify(snapshot))
+}
+
+function normalizeSearch(value: string) {
+  return value.toLowerCase().trim()
 }
 
 render(() => <App />, document.getElementById("root")!)

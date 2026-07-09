@@ -59,7 +59,9 @@ export const SelectContent = <T extends ValidComponent = "div">(
           local.class,
         )}
         {...others}
-      />
+      >
+        <SelectPrimitive.Listbox />
+      </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   )
 }

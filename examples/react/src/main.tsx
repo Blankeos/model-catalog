@@ -38,7 +38,16 @@ function App() {
   }
 
   const providers = useMemo(() => catalog.listProviders(), [catalog])
-  const visibleProviders = useMemo(() => catalog.listProviders({ query: providerSearch }), [catalog, providerSearch])
+  const visibleProviders = useMemo(() => {
+    const query = normalizeSearch(providerSearch)
+    if (!query) return providers
+    const tokens = query.split(/\s+/)
+
+    return providers.filter((provider) => {
+      const haystack = `${provider.id} ${provider.name} ${provider.provider.api ?? ""} ${provider.provider.doc ?? ""}`.toLowerCase()
+      return tokens.every((token) => haystack.includes(token))
+    })
+  }, [providerSearch, providers])
   const providerConfigs = useMemo<ProviderConfig[]>(
     () =>
       providers.map((provider) => ({
@@ -181,6 +190,10 @@ function readSnapshot() {
 function writeSnapshot(snapshot: CatalogSnapshot) {
   if (typeof window === "undefined") return
   window.localStorage.setItem(snapshotStorageKey, JSON.stringify(snapshot))
+}
+
+function normalizeSearch(value: string) {
+  return value.toLowerCase().trim()
 }
 
 createRoot(document.getElementById("root")!).render(<App />)

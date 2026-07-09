@@ -5,12 +5,13 @@ import {
   createSignal,
   For,
   on,
+  onMount,
   Show,
   type Accessor,
 } from "solid-js"
 import { type Catalog, type ListedModel } from "model-catalog"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
-import { Select, SelectContent, SelectItem, SelectListbox, SelectTrigger, SelectValue } from "./ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 import { cn } from "../lib/utils"
 
 export type ChatModelValue = {
@@ -75,6 +76,11 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
   const [search, setSearch] = createSignal("")
   const [providerFilter, setProviderFilter] = createSignal<Set<string>>(new Set())
   const [scrollEl, setScrollEl] = createSignal<HTMLDivElement | null>(null)
+  const [allowThinkingChange, setAllowThinkingChange] = createSignal(false)
+
+  onMount(() => {
+    window.setTimeout(() => setAllowThinkingChange(true), 80)
+  })
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -133,19 +139,28 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
   createEffect(
     on(open, (isOpen) => {
       if (!isOpen) return
-      const value = props.value
+      const value = selectedModelIdentity()
       if (!value) return
       const index = matchedModels().findIndex((model) => model.provider === value.provider && model.modelId === value.modelId)
       if (index >= 0) window.setTimeout(() => virtualizer.scrollToIndex(index, { align: "center" }), 0)
     }),
   )
 
-  const currentLabel = createMemo(() => {
+  const selectedModelIdentity = createMemo<{ provider: string; modelId: string } | null>((previous) => {
     const value = props.value
+    if (!value) return null
+    if (previous?.provider === value.provider && previous.modelId === value.modelId) return previous
+    return { provider: value.provider, modelId: value.modelId }
+  })
+
+  const currentLabel = createMemo(() => {
+    const value = selectedModelIdentity()
     if (!value) return null
     return allModels().find((model) => model.provider === value.provider && model.modelId === value.modelId) ?? null
   })
   const thinkingOptions = createMemo(() => effortOptions(currentLabel()?.listed.reasoningOptions))
+  const thinkingValues = createMemo(() => thinkingOptions().map((option) => option.value))
+  const thinkingLabelByValue = createMemo(() => new Map(thinkingOptions().map((option) => [option.value, option.label])))
   const selectedThinking = createMemo(() => {
     const options = thinkingOptions()
     return options.some((option) => option.value === props.value?.thinking) ? props.value?.thinking : options[0]?.value
@@ -206,144 +221,145 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
           </Show>
         </PopoverTrigger>
 
-        <PopoverContent
-          role="dialog"
-          aria-label={props.title ?? "Select chat model"}
-          class="w-72 overflow-hidden rounded-2xl bg-white/95 p-0 shadow-xl ring-1 ring-zinc-200/50 backdrop-blur"
-        >
-          <Show when={props.title}>
-            <div class="px-3 pb-1 pt-3 text-[10px] font-bold tracking-wide text-zinc-500 uppercase">{props.title}</div>
-          </Show>
-
-          <Show
-            when={allModels().length > 0}
-            fallback={
-              <div class="px-3 py-3 text-xs text-zinc-500">
-                No text models. Add an API key in{" "}
-                <a href={props.settingsHref ?? "/settings"} class="text-zinc-900 underline">
-                  Settings
-                </a>
-                .
-              </div>
-            }
+        <Show when={open()}>
+          <PopoverContent
+            role="dialog"
+            aria-label={props.title ?? "Select chat model"}
+            class="w-72 overflow-hidden rounded-2xl bg-white/95 p-0 shadow-xl ring-1 ring-zinc-200/50 backdrop-blur"
           >
-            <div>
-              <div class="flex items-center gap-2 border-b border-zinc-100 px-2 py-2">
-                <input
-                  class="min-w-0 flex-1 border-0 bg-transparent px-1 py-1.5 text-[13px] text-zinc-900 outline-none placeholder:text-zinc-400"
-                  placeholder="Search models..."
-                  value={search()}
-                  onInput={(event) => setSearch(event.currentTarget.value)}
-                />
-                <ProviderFacetFilter options={allProviders()} selected={providerFilter()} onChange={setProviderFilter} />
-              </div>
+            <Show when={props.title}>
+              <div class="px-3 pb-1 pt-3 text-[10px] font-bold tracking-wide text-zinc-500 uppercase">{props.title}</div>
+            </Show>
 
-              <div ref={setScrollEl} class="max-h-72 overflow-auto p-1.5" role="listbox" aria-label="Available chat models">
-                <Show when={matchedModels().length === 0}>
-                  <div class="py-6 text-center text-sm text-zinc-500">No models found.</div>
-                </Show>
+            <Show
+              when={allModels().length > 0}
+              fallback={
+                <div class="px-3 py-3 text-xs text-zinc-500">
+                  No text models. Add an API key in{" "}
+                  <a href={props.settingsHref ?? "/settings"} class="text-zinc-900 underline">
+                    Settings
+                  </a>
+                  .
+                </div>
+              }
+            >
+              <div>
+                <div class="flex items-center gap-2 border-b border-zinc-100 px-2 py-2">
+                  <input
+                    class="min-w-0 flex-1 border-0 bg-transparent px-1 py-1.5 text-[13px] text-zinc-900 outline-none placeholder:text-zinc-400"
+                    placeholder="Search models..."
+                    value={search()}
+                    onInput={(event) => setSearch(event.currentTarget.value)}
+                  />
+                  <ProviderFacetFilter options={allProviders()} selected={providerFilter()} onChange={setProviderFilter} />
+                </div>
 
-                <div
-                  style={{
-                    height: `${virtualizer.getTotalSize()}px`,
-                    width: "100%",
-                    position: "relative",
-                  }}
-                >
-                  <For each={virtualizer.getVirtualItems()}>
-                    {(virtualItem) => {
-                      const model = () => matchedModels()[virtualItem.index]
-                      const selected = () => props.value?.provider === model()?.provider && props.value?.modelId === model()?.modelId
-                      const favorite = () => {
-                        const item = model()
-                        return item ? isFavorite(item.provider, item.modelId) : false
-                      }
+                <div ref={setScrollEl} class="max-h-72 overflow-auto p-1.5" role="listbox" aria-label="Available chat models">
+                  <Show when={matchedModels().length === 0}>
+                    <div class="py-6 text-center text-sm text-zinc-500">No models found.</div>
+                  </Show>
 
-                      return (
-                        <Show when={model()}>
-                          {(item) => (
-                            <div
-                              role="option"
-                              tabIndex={0}
-                              aria-selected={selected()}
-                              data-value={item().value}
-                              onClick={() => onSelect(item())}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter" || event.key === " ") {
-                                  event.preventDefault()
-                                  onSelect(item())
-                                }
-                              }}
-                              style={{
-                                position: "absolute",
-                                top: 0,
-                                left: 0,
-                                width: "100%",
-                                height: `${virtualItem.size}px`,
-                                transform: `translateY(${virtualItem.start}px)`,
-                              }}
-                              class={cn(
-                                "flex cursor-pointer items-center rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-zinc-50",
-                                selected() && "bg-zinc-50",
-                              )}
-                            >
-                              <div class="flex min-w-0 flex-1 items-center justify-between gap-2">
-                                <span class="min-w-0 truncate">{item().name}</span>
-                                <div class="flex shrink-0 items-center gap-1.5">
-                                  <ProviderMark providerId={item().provider} providerName={item().providerName} logoUrl={item().providerLogoUrl} size="md" />
-                                  <button
-                                    type="button"
-                                    class={cn(
-                                      "flex h-5 w-5 items-center justify-center rounded transition-colors hover:bg-zinc-200",
-                                      favorite() ? "text-amber-500" : "text-zinc-300 hover:text-zinc-700",
-                                    )}
-                                    aria-label={favorite() ? "Unfavorite model" : "Favorite model"}
-                                    aria-pressed={favorite()}
-                                    onPointerDown={(event) => event.stopPropagation()}
-                                    onClick={(event) => {
-                                      event.preventDefault()
-                                      event.stopPropagation()
-                                      toggleFavorite(item().provider, item().modelId)
-                                    }}
-                                  >
-                                    <StarIcon filled={favorite()} />
-                                  </button>
+                  <div
+                    style={{
+                      height: `${virtualizer.getTotalSize()}px`,
+                      width: "100%",
+                      position: "relative",
+                    }}
+                  >
+                    <For each={virtualizer.getVirtualItems()}>
+                      {(virtualItem) => {
+                        const model = () => matchedModels()[virtualItem.index]
+                        const selected = () => selectedModelIdentity()?.provider === model()?.provider && selectedModelIdentity()?.modelId === model()?.modelId
+                        const favorite = () => {
+                          const item = model()
+                          return item ? isFavorite(item.provider, item.modelId) : false
+                        }
+
+                        return (
+                          <Show when={model()}>
+                            {(item) => (
+                              <div
+                                role="option"
+                                tabIndex={0}
+                                aria-selected={selected()}
+                                data-value={item().value}
+                                onClick={() => onSelect(item())}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault()
+                                    onSelect(item())
+                                  }
+                                }}
+                                style={{
+                                  position: "absolute",
+                                  top: 0,
+                                  left: 0,
+                                  width: "100%",
+                                  height: `${virtualItem.size}px`,
+                                  transform: `translateY(${virtualItem.start}px)`,
+                                }}
+                                class={cn(
+                                  "flex cursor-pointer items-center rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-zinc-50",
+                                  selected() && "bg-zinc-50",
+                                )}
+                              >
+                                <div class="flex min-w-0 flex-1 items-center justify-between gap-2">
+                                  <span class="min-w-0 truncate">{item().name}</span>
+                                  <div class="flex shrink-0 items-center gap-1.5">
+                                    <ProviderMark providerId={item().provider} providerName={item().providerName} logoUrl={item().providerLogoUrl} size="md" />
+                                    <button
+                                      type="button"
+                                      class={cn(
+                                        "flex h-5 w-5 items-center justify-center rounded transition-colors hover:bg-zinc-200",
+                                        favorite() ? "text-amber-500" : "text-zinc-300 hover:text-zinc-700",
+                                      )}
+                                      aria-label={favorite() ? "Unfavorite model" : "Favorite model"}
+                                      aria-pressed={favorite()}
+                                      onPointerDown={(event) => event.stopPropagation()}
+                                      onClick={(event) => {
+                                        event.preventDefault()
+                                        event.stopPropagation()
+                                        toggleFavorite(item().provider, item().modelId)
+                                      }}
+                                    >
+                                      <StarIcon filled={favorite()} />
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          )}
-                        </Show>
-                      )
-                    }}
-                  </For>
+                            )}
+                          </Show>
+                        )
+                      }}
+                    </For>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Show>
-        </PopoverContent>
+            </Show>
+          </PopoverContent>
+        </Show>
       </Popover>
       <Show when={thinkingOptions().length > 0}>
-        <Select<ThinkingOption>
-          options={thinkingOptions()}
-          optionValue="value"
-          optionTextValue="label"
-          value={thinkingOptions().find((option) => option.value === selectedThinking()) ?? null}
-          onChange={(option) => {
-            if (option) onThinkingChange(option.value)
+        <Select<string>
+          options={thinkingValues()}
+          defaultValue={selectedThinking()}
+          onChange={(value) => {
+            if (!allowThinkingChange()) return
+            if (!value || value === selectedThinking()) return
+            window.setTimeout(() => onThinkingChange(value), 0)
           }}
-          itemComponent={(props) => (
-            <SelectItem item={props.item}>{props.item.rawValue.label}</SelectItem>
-          )}
+          itemComponent={(props) => <SelectItem item={props.item}>{thinkingLabelByValue().get(props.item.rawValue) ?? props.item.rawValue}</SelectItem>}
         >
           <SelectTrigger aria-label="Thinking">
             <span class="text-zinc-600">Thinking</span>
-            <SelectValue<ThinkingOption>>
-              {(state) => state.selectedOption()?.label}
+            <SelectValue<string>>
+              {(state) => {
+                const value = state.selectedOption()
+                return value ? thinkingLabelByValue().get(value) ?? value : null
+              }}
             </SelectValue>
           </SelectTrigger>
-          <SelectContent>
-            <SelectListbox />
-          </SelectContent>
+          <SelectContent />
         </Select>
       </Show>
       </div>
@@ -445,10 +461,17 @@ function useProviderConfigs(catalog: Accessor<Catalog>, source: Accessor<Provide
 }
 
 function useFavoriteModels(storageKey: string) {
-  const [favorites, setFavorites] = createSignal<ReadonlySet<string>>(new Set(readJson<string[]>(storageKey, [])))
+  const initialFavorites = readJson<string[]>(storageKey, [])
+  const [favorites, setFavorites] = createSignal<ReadonlySet<string>>(new Set(initialFavorites))
+  let hasMounted = false
 
   createEffect(() => {
-    writeJson(storageKey, [...favorites()])
+    const next = [...favorites()]
+    if (!hasMounted) {
+      hasMounted = true
+      if (arraysEqual(next, initialFavorites)) return
+    }
+    deferStorageWrite(() => writeJson(storageKey, next))
   })
 
   const isFavorite = (provider: string, modelId: string) => favorites().has(modelKey(provider, modelId))
@@ -470,7 +493,7 @@ function useLastChatModel(storageKey: string) {
 
   const setLastModel = (next: ChatModelValue) => {
     setLastModelSignal(next)
-    writeJson(storageKey, next)
+    deferStorageWrite(() => writeJson(storageKey, next))
   }
 
   return { lastModel, setLastModel }
@@ -549,6 +572,15 @@ function readJson<T>(key: string, fallback: T): T {
 function writeJson(key: string, value: unknown) {
   if (typeof window === "undefined") return
   window.localStorage.setItem(key, JSON.stringify(value))
+}
+
+function deferStorageWrite(write: () => void) {
+  if (typeof window === "undefined") return
+  window.setTimeout(write, 0)
+}
+
+function arraysEqual(left: readonly string[], right: readonly string[]) {
+  return left.length === right.length && left.every((value, index) => value === right[index])
 }
 
 function ChevronDownIcon(props: { class?: string }) {
