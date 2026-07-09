@@ -5,13 +5,12 @@ import {
   createSignal,
   For,
   on,
-  onCleanup,
-  onMount,
   Show,
   type Accessor,
-  type JSX,
 } from "solid-js"
 import { type Catalog, type ListedModel } from "model-catalog"
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
+import { cn } from "../lib/utils"
 
 export type ChatModelValue = {
   provider: string
@@ -55,17 +54,12 @@ type ProviderFacetOption = {
   icon?: string
 }
 
-const PROVIDER_ICON_OVERRIDES: Record<string, string> = {
-  // Keep app-owned overrides here if your app hosts its own icons.
-  // The model-catalog snapshot already includes models.dev logo URLs as provider.logoUrl.
-}
-
 export function ChatModelSelector(props: ChatModelSelectorProps) {
   const providerConfigs = useProviderConfigs(() => props.catalog, () => props.providerConfigs)
   const enabledProviders = createMemo(() =>
     providerConfigs()
       .filter((provider) => provider.isEnabled && provider.hasApiKey)
-      .map((provider) => provider.provider)
+      .map((provider) => provider.provider),
   )
 
   const { isFavorite, toggleFavorite } = useFavoriteModels(props.favoritesStorageKey ?? "model-catalog:favorites")
@@ -74,7 +68,6 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
   const [search, setSearch] = createSignal("")
   const [providerFilter, setProviderFilter] = createSignal<Set<string>>(new Set())
   const [scrollEl, setScrollEl] = createSignal<HTMLDivElement | null>(null)
-  let popoverRoot: HTMLDivElement | undefined
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -83,24 +76,6 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
     }
     setOpen(nextOpen)
   }
-
-  onMount(() => {
-    const onPointerDown = (event: PointerEvent) => {
-      if (!open()) return
-      const target = event.target
-      if (target instanceof Node && popoverRoot?.contains(target)) return
-      handleOpenChange(false)
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") handleOpenChange(false)
-    }
-    document.addEventListener("pointerdown", onPointerDown)
-    document.addEventListener("keydown", onKeyDown)
-    onCleanup(() => {
-      document.removeEventListener("pointerdown", onPointerDown)
-      document.removeEventListener("keydown", onKeyDown)
-    })
-  })
 
   const allModels = createMemo(() => {
     const grouped = props.catalog.listModels({
@@ -113,7 +88,7 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
     return sortPreferredModels(
       grouped.groups.flatMap((group) => group.models).filter(isTextOnlyChatModel).map(toTextModelOption),
       isFavorite,
-      lastModel()
+      lastModel(),
     )
   })
 
@@ -135,7 +110,7 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
     return sortPreferredModels(
       grouped.groups.flatMap((group) => group.models).filter(isTextOnlyChatModel).map(toTextModelOption),
       isFavorite,
-      lastModel()
+      lastModel(),
     )
   })
 
@@ -155,7 +130,7 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
       if (!value) return
       const index = matchedModels().findIndex((model) => model.provider === value.provider && model.modelId === value.modelId)
       if (index >= 0) window.setTimeout(() => virtualizer.scrollToIndex(index, { align: "center" }), 0)
-    })
+    }),
   )
 
   const currentLabel = createMemo(() => {
@@ -171,7 +146,7 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
       seen.set(model.provider, {
         value: model.provider,
         label: model.providerName,
-        icon: providerIcon(model.provider, model.providerLogoUrl),
+        icon: model.providerLogoUrl,
       })
     }
     return [...seen.values()].sort((a, b) => a.label.localeCompare(b.label) || a.value.localeCompare(b.value))
@@ -185,50 +160,57 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
   }
 
   return (
-    <div ref={popoverRoot} class={cn("mc-selector", props.iconOnly && "mc-selector--icon-only", props.class)}>
-      <ModelSelectorStyles />
-      <button
-        type="button"
-        class="mc-trigger"
-        aria-haspopup="listbox"
-        aria-expanded={open()}
-        title={currentLabel()?.name ?? "Select model"}
-        onClick={() => handleOpenChange(!open())}
-      >
-        <Show when={currentLabel()} fallback={<span class="mc-trigger-placeholder">Select model...</span>}>
-          {(model) => (
-            <>
-              <ProviderMark providerId={model().provider} providerName={model().providerName} logoUrl={model().providerLogoUrl} size="sm" />
-              <Show when={!props.iconOnly}>
-                <span class="mc-trigger-label">{model().name}</span>
-              </Show>
-            </>
+    <div class={cn("inline-block", props.class)}>
+      <Popover open={open()} onOpenChange={handleOpenChange} placement="top-end">
+        <PopoverTrigger
+          class={cn(
+            "flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-900 transition-colors hover:bg-zinc-50",
+            "max-w-[16rem]",
+            props.iconOnly && "h-8 w-8 justify-center p-0",
           )}
-        </Show>
-        <Show when={!props.iconOnly}>
-          <ChevronDownIcon class="mc-chevron" />
-        </Show>
-      </button>
+          aria-haspopup="listbox"
+          title={currentLabel()?.name ?? "Select model"}
+        >
+          <Show when={currentLabel()} fallback={<span class="text-zinc-500">Select model...</span>}>
+            {(model) => (
+              <>
+                <ProviderMark providerId={model().provider} providerName={model().providerName} logoUrl={model().providerLogoUrl} size="sm" />
+                <Show when={!props.iconOnly}>
+                  <span class="min-w-0 truncate">{model().name}</span>
+                </Show>
+              </>
+            )}
+          </Show>
+          <Show when={!props.iconOnly}>
+            <ChevronDownIcon class="h-3 w-3 shrink-0 text-zinc-500" />
+          </Show>
+        </PopoverTrigger>
 
-      <Show when={open()}>
-        <div class="mc-popover" role="dialog" aria-label={props.title ?? "Select chat model"}>
+        <PopoverContent
+          role="dialog"
+          aria-label={props.title ?? "Select chat model"}
+          class="w-72 overflow-hidden rounded-2xl bg-white/95 p-0 shadow-xl ring-1 ring-zinc-200/50 backdrop-blur"
+        >
           <Show when={props.title}>
-            <div class="mc-title">{props.title}</div>
+            <div class="px-3 pb-1 pt-3 text-[10px] font-bold tracking-wide text-zinc-500 uppercase">{props.title}</div>
           </Show>
 
           <Show
             when={allModels().length > 0}
             fallback={
-              <div class="mc-empty">
+              <div class="px-3 py-3 text-xs text-zinc-500">
                 No text models. Add an API key in{" "}
-                <a href={props.settingsHref ?? "/settings"}>Settings</a>.
+                <a href={props.settingsHref ?? "/settings"} class="text-zinc-900 underline">
+                  Settings
+                </a>
+                .
               </div>
             }
           >
-            <div class="mc-command">
-              <div class="mc-search-row">
+            <div>
+              <div class="flex items-center gap-2 border-b border-zinc-100 px-2 py-2">
                 <input
-                  class="mc-search-input"
+                  class="min-w-0 flex-1 border-0 bg-transparent px-1 py-1.5 text-[13px] text-zinc-900 outline-none placeholder:text-zinc-400"
                   placeholder="Search models..."
                   value={search()}
                   onInput={(event) => setSearch(event.currentTarget.value)}
@@ -236,9 +218,9 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
                 <ProviderFacetFilter options={allProviders()} selected={providerFilter()} onChange={setProviderFilter} />
               </div>
 
-              <div ref={setScrollEl} class="mc-list" role="listbox" aria-label="Available chat models">
+              <div ref={setScrollEl} class="max-h-72 overflow-auto p-1.5" role="listbox" aria-label="Available chat models">
                 <Show when={matchedModels().length === 0}>
-                  <div class="mc-empty mc-empty--center">No models found.</div>
+                  <div class="py-6 text-center text-sm text-zinc-500">No models found.</div>
                 </Show>
 
                 <div
@@ -280,15 +262,21 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
                                 height: `${virtualItem.size}px`,
                                 transform: `translateY(${virtualItem.start}px)`,
                               }}
-                              class={cn("mc-option", selected() && "mc-option--selected")}
+                              class={cn(
+                                "flex cursor-pointer items-center rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-zinc-50",
+                                selected() && "bg-zinc-50",
+                              )}
                             >
-                              <div class="mc-option-main">
-                                <span class="mc-option-name">{item().name}</span>
-                                <div class="mc-option-meta">
+                              <div class="flex min-w-0 flex-1 items-center justify-between gap-2">
+                                <span class="min-w-0 truncate">{item().name}</span>
+                                <div class="flex shrink-0 items-center gap-1.5">
                                   <ProviderMark providerId={item().provider} providerName={item().providerName} logoUrl={item().providerLogoUrl} size="md" />
                                   <button
                                     type="button"
-                                    class={cn("mc-favorite", favorite() && "mc-favorite--active")}
+                                    class={cn(
+                                      "flex h-5 w-5 items-center justify-center rounded transition-colors hover:bg-zinc-200",
+                                      favorite() ? "text-amber-500" : "text-zinc-300 hover:text-zinc-700",
+                                    )}
                                     aria-label={favorite() ? "Unfavorite model" : "Favorite model"}
                                     aria-pressed={favorite()}
                                     onPointerDown={(event) => event.stopPropagation()}
@@ -312,8 +300,8 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
               </div>
             </div>
           </Show>
-        </div>
-      </Show>
+        </PopoverContent>
+      </Popover>
     </div>
   )
 }
@@ -335,46 +323,60 @@ function ProviderFacetFilter(props: {
   const clear = () => props.onChange(new Set<string>())
 
   return (
-    <details class="mc-facet">
-      <summary class="mc-facet-trigger" title="Filter by provider">
-        Providers
-        <Show when={selectedCount() > 0}>
-          <span class="mc-facet-count">{selectedCount()}</span>
-        </Show>
-      </summary>
-      <div class="mc-facet-menu">
-        <div class="mc-facet-header">
+    <Popover placement="bottom-end">
+      <PopoverTrigger class="inline-flex cursor-pointer items-center gap-1 rounded-md bg-zinc-100 px-2 py-1.5 text-[11px] font-semibold text-zinc-600 select-none hover:bg-zinc-200">
+          Providers
+          <Show when={selectedCount() > 0}>
+            <span class="inline-flex min-w-[1rem] justify-center rounded-full bg-zinc-900 px-1 text-[10px] text-white">
+              {selectedCount()}
+            </span>
+          </Show>
+      </PopoverTrigger>
+      <PopoverContent class="z-[60] max-h-64 w-56 overflow-auto rounded-xl p-1.5 shadow-lg">
+        <div class="flex items-center justify-between px-1.5 pb-1.5 text-[11px] font-bold text-zinc-500">
           <span>Filter by provider</span>
-          <button type="button" onClick={clear} disabled={selectedCount() === 0}>
+          <button type="button" onClick={clear} disabled={selectedCount() === 0} class="text-zinc-500 underline disabled:opacity-40">
             Clear
           </button>
         </div>
         <For each={props.options}>
           {(option) => (
-            <label class="mc-facet-option">
-              <input type="checkbox" checked={props.selected.has(option.value)} onChange={() => toggle(option.value)} />
+            <label class="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1.5 text-[13px] hover:bg-zinc-50">
+              <input type="checkbox" checked={props.selected.has(option.value)} onChange={() => toggle(option.value)} class="m-0" />
               <ProviderMark providerId={option.value} providerName={option.label} logoUrl={option.icon} size="sm" />
               <span>{option.label}</span>
             </label>
           )}
         </For>
-      </div>
-    </details>
+      </PopoverContent>
+    </Popover>
   )
 }
 
 function ProviderMark(props: { providerId: string; providerName: string; logoUrl?: string; size: "sm" | "md" }) {
-  const icon = createMemo(() => providerIcon(props.providerId, props.logoUrl))
+  const icon = createMemo(() => props.logoUrl)
   return (
     <Show
       when={icon()}
       fallback={
-        <span class={cn("mc-provider-fallback", props.size === "md" && "mc-provider-fallback--md")} title={props.providerName}>
+        <span
+          class={cn(
+            "inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-sm bg-zinc-100 text-[8px] font-bold tracking-tight text-zinc-600",
+            props.size === "md" && "h-4 min-w-4 text-[9px]",
+          )}
+          title={props.providerName}
+        >
           {providerInitials(props.providerName)}
         </span>
       }
     >
-      {(src) => <img src={src()} alt={props.providerName} class={cn("mc-provider-icon", props.size === "md" && "mc-provider-icon--md")} />}
+      {(src) => (
+        <img
+          src={src()}
+          alt={props.providerName}
+          class={cn("h-3.5 w-3.5 shrink-0 rounded-sm object-contain", props.size === "md" && "h-4 w-4 opacity-80")}
+        />
+      )}
     </Show>
   )
 }
@@ -385,15 +387,15 @@ function useProviderConfigs(catalog: Accessor<Catalog>, source: Accessor<Provide
     if (typeof provided === "function") return provided()
     if (provided) return provided
 
-    // Demo/default boundary: in a real app, pass providerConfigs from your own API/query state.
-    return catalog().listProviders()
+    return catalog()
+      .listProviders()
       .map((provider) => ({
-      id: provider.id,
-      provider: provider.id,
-      providerId: provider.id,
-      hasApiKey: true,
-      isEnabled: true,
-    }))
+        id: provider.id,
+        provider: provider.id,
+        providerId: provider.id,
+        hasApiKey: true,
+        isEnabled: true,
+      }))
   })
 }
 
@@ -449,7 +451,7 @@ function toTextModelOption(model: ListedModel): TextModelOption {
 function sortPreferredModels(
   models: TextModelOption[],
   isFavorite: (provider: string, modelId: string) => boolean,
-  lastModel: ChatModelValue | null
+  lastModel: ChatModelValue | null,
 ) {
   return [...models].sort((a, b) => {
     const favoriteDelta = Number(isFavorite(b.provider, b.modelId)) - Number(isFavorite(a.provider, a.modelId))
@@ -464,10 +466,6 @@ function sortPreferredModels(
   })
 }
 
-function providerIcon(providerId: string, logoUrl?: string) {
-  return PROVIDER_ICON_OVERRIDES[providerId] ?? logoUrl
-}
-
 function providerInitials(name: string) {
   return name
     .split(/\s+/)
@@ -479,10 +477,6 @@ function providerInitials(name: string) {
 
 function modelKey(provider: string, modelId: string) {
   return `${provider}/${modelId}`
-}
-
-function cn(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ")
 }
 
 function readJson<T>(key: string, fallback: T): T {
@@ -515,293 +509,17 @@ function ChevronDownIcon(props: { class?: string }) {
 
 function StarIcon(props: { filled: boolean }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={props.filled ? "currentColor" : "none"} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mc-star">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill={props.filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="h-3.5 w-3.5"
+    >
       <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
     </svg>
   )
 }
-
-function ModelSelectorStyles() {
-  return <style>{modelSelectorCss}</style>
-}
-
-const modelSelectorCss = `
-.mc-selector {
-  position: relative;
-  display: inline-block;
-  color: rgb(24 24 27);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-.mc-trigger {
-  display: flex;
-  max-width: 16rem;
-  align-items: center;
-  gap: 0.375rem;
-  border: 1px solid rgb(228 228 231);
-  border-radius: 0.5rem;
-  background: rgb(255 255 255);
-  padding: 0.375rem 0.625rem;
-  color: inherit;
-  font-size: 0.75rem;
-  line-height: 1rem;
-  cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
-}
-.mc-trigger:hover,
-.mc-trigger[aria-expanded="true"] {
-  background: rgb(244 244 245);
-}
-.mc-selector--icon-only .mc-trigger {
-  height: 2rem;
-  width: 2rem;
-  justify-content: center;
-  padding: 0;
-}
-.mc-trigger-placeholder {
-  color: rgb(113 113 122);
-  white-space: nowrap;
-}
-.mc-trigger-label,
-.mc-option-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.mc-chevron {
-  height: 0.75rem;
-  width: 0.75rem;
-  flex: none;
-  color: rgb(113 113 122);
-}
-.mc-popover {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 0.5rem);
-  z-index: 50;
-  width: 18rem;
-  overflow: hidden;
-  border: 1px solid rgb(228 228 231);
-  border-radius: 1rem;
-  background: color-mix(in srgb, white 96%, transparent);
-  box-shadow: 0 24px 70px rgba(24, 24, 27, 0.18), 0 8px 20px rgba(24, 24, 27, 0.08);
-  backdrop-filter: blur(12px);
-}
-.mc-title {
-  padding: 0.75rem 0.75rem 0.25rem;
-  color: rgb(113 113 122);
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.mc-command {
-  background: transparent;
-}
-.mc-search-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  border-bottom: 1px solid rgb(244 244 245);
-  padding: 0.5rem;
-}
-.mc-search-input {
-  min-width: 0;
-  flex: 1;
-  border: 0;
-  background: transparent;
-  padding: 0.375rem 0.25rem;
-  color: inherit;
-  font-size: 0.8125rem;
-  outline: none;
-}
-.mc-search-input::placeholder {
-  color: rgb(161 161 170);
-}
-.mc-list {
-  max-height: 18rem;
-  overflow: auto;
-  padding: 0.375rem;
-}
-.mc-option {
-  display: flex;
-  cursor: pointer;
-  align-items: center;
-  border-radius: 0.625rem;
-  padding: 0.5rem 0.625rem;
-  font-size: 0.875rem;
-  transition: background 120ms ease;
-}
-.mc-option:hover,
-.mc-option:focus-visible {
-  background: rgb(244 244 245);
-  outline: none;
-}
-.mc-option--selected {
-  background: rgb(244 244 245);
-}
-.mc-option-main {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-.mc-option-meta {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 0.375rem;
-}
-.mc-provider-icon {
-  height: 0.875rem;
-  width: 0.875rem;
-  flex: none;
-  border-radius: 0.1875rem;
-  object-fit: contain;
-}
-.mc-provider-icon--md {
-  height: 1rem;
-  width: 1rem;
-  opacity: 0.82;
-}
-.mc-provider-fallback {
-  display: inline-flex;
-  height: 0.875rem;
-  min-width: 0.875rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.1875rem;
-  background: rgb(244 244 245);
-  color: rgb(82 82 91);
-  font-size: 0.5rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-.mc-provider-fallback--md {
-  height: 1rem;
-  min-width: 1rem;
-  font-size: 0.55rem;
-}
-.mc-favorite {
-  display: inline-flex;
-  height: 1.25rem;
-  width: 1.25rem;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: 0.25rem;
-  background: transparent;
-  color: rgb(161 161 170);
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
-}
-.mc-favorite:hover {
-  background: rgb(228 228 231);
-  color: rgb(39 39 42);
-}
-.mc-favorite--active {
-  color: rgb(245 158 11);
-}
-.mc-star {
-  height: 0.875rem;
-  width: 0.875rem;
-}
-.mc-empty {
-  padding: 0.75rem;
-  color: rgb(113 113 122);
-  font-size: 0.75rem;
-}
-.mc-empty a {
-  color: rgb(24 24 27);
-  text-decoration: underline;
-}
-.mc-empty--center {
-  padding: 1.5rem 0.75rem;
-  text-align: center;
-  font-size: 0.875rem;
-}
-.mc-facet {
-  position: relative;
-  flex: none;
-}
-.mc-facet-trigger {
-  display: inline-flex;
-  list-style: none;
-  cursor: pointer;
-  align-items: center;
-  gap: 0.25rem;
-  border-radius: 0.5rem;
-  background: rgb(244 244 245);
-  padding: 0.375rem 0.5rem;
-  color: rgb(82 82 91);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  user-select: none;
-}
-.mc-facet-trigger::-webkit-details-marker {
-  display: none;
-}
-.mc-facet-count {
-  display: inline-flex;
-  min-width: 1rem;
-  justify-content: center;
-  border-radius: 999px;
-  background: rgb(24 24 27);
-  padding: 0 0.25rem;
-  color: white;
-  font-size: 0.625rem;
-}
-.mc-facet-menu {
-  position: absolute;
-  top: calc(100% + 0.375rem);
-  right: 0;
-  z-index: 60;
-  width: 14rem;
-  max-height: 16rem;
-  overflow: auto;
-  border: 1px solid rgb(228 228 231);
-  border-radius: 0.75rem;
-  background: white;
-  padding: 0.375rem;
-  box-shadow: 0 18px 50px rgba(24, 24, 27, 0.14);
-}
-.mc-facet-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.375rem 0.375rem 0.5rem;
-  color: rgb(113 113 122);
-  font-size: 0.6875rem;
-  font-weight: 700;
-}
-.mc-facet-header button {
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  text-decoration: underline;
-}
-.mc-facet-header button:disabled {
-  cursor: default;
-  opacity: 0.4;
-}
-.mc-facet-option {
-  display: flex;
-  cursor: pointer;
-  align-items: center;
-  gap: 0.5rem;
-  border-radius: 0.5rem;
-  padding: 0.375rem;
-  font-size: 0.8125rem;
-}
-.mc-facet-option:hover {
-  background: rgb(244 244 245);
-}
-.mc-facet-option input {
-  margin: 0;
-}
-`

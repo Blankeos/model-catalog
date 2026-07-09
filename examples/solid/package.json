@@ -1,0 +1,25 @@
+{
+  "name": "model-catalog-solid-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@kobalte/core": "^0.13.11",
+    "@tanstack/solid-virtual": "^3.13.12",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.6.0",
+    "vite": "^6.0.7",
+    "vite-plugin-solid": "^2.11.0",
+    "solid-js": "^1.9.5",
+    "model-catalog": "file:../.."
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.2",
+    "tailwindcss": "^4.3.2",
+    "typescript": "^5.7.2"
+  }
+}
