@@ -6,6 +6,8 @@ Fetch [models.dev](https://models.dev/) once. Add custom generators. Store the s
 
 ## Demo
 
+Note: the UI is not part of the lib. But you can reference it on `examples/*`
+
 https://github.com/user-attachments/assets/5a18dfa0-2acb-48b8-a496-40ad1ee7fd26
 
 ## Why
