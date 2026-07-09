@@ -5,9 +5,9 @@ export type ChatModelValue = {
 }
 
 export type ProviderConfig = {
-  id: string
+  id?: string
   provider: string
-  providerId: string | null
-  hasApiKey: boolean
+  providerId: string
+  isConfigured: boolean
   isEnabled: boolean
 }

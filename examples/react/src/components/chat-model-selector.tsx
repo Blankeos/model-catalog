@@ -46,7 +46,7 @@ type ThinkingOption = {
 export function ChatModelSelector(props: ChatModelSelectorProps) {
   const providerConfigs = useProviderConfigs(props.catalog, props.providerConfigs)
   const enabledProviders = useMemo(
-    () => providerConfigs.filter((provider) => provider.isEnabled && provider.hasApiKey).map((provider) => provider.provider),
+    () => providerConfigs.filter((provider) => provider.isEnabled && provider.isConfigured).map((provider) => provider.providerId),
     [providerConfigs],
   )
 
@@ -396,7 +396,7 @@ function useProviderConfigs(catalog: Catalog, source: ProviderConfig[] | undefin
       id: provider.id,
       provider: provider.id,
       providerId: provider.id,
-      hasApiKey: true,
+      isConfigured: true,
       isEnabled: true,
     }))
   }, [catalog, source])

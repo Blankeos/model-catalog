@@ -2,11 +2,12 @@
 
 A tiny JS/TS library and CLI for building AI model catalogs and listing/filtering models.
 
+Model Catalog solves your data source problem for your js/ts AI apps.
 Fetch [models.dev](https://models.dev/) once. Add custom generators. Store the snapshot anywhere. Render the model list your app wants.
 
 ## Demo
 
-Note: the UI is not part of the lib. But you can reference it on `examples/*`
+Note: the UI is not part of the lib. But you can reference it on `examples/*` if you want to build it for your own app.
 
 https://github.com/user-attachments/assets/5a18dfa0-2acb-48b8-a496-40ad1ee7fd26
 
@@ -49,8 +50,8 @@ The package does not model provider credentials or provider configuration. If yo
 
 ```ts
 const enabledProviders = providerConfigs
-  .filter((provider) => provider.isEnabled && provider.hasApiKey)
-  .map((provider) => provider.provider);
+  .filter((provider) => provider.isEnabled && provider.isConfigured)
+  .map((provider) => provider.providerId);
 
 const catalog = createCatalog(snapshot);
 const models = catalog.listModels({
@@ -65,11 +66,11 @@ const models = catalog.listModels({
 
 ```ts
 const providerConfigs = await api.providerConfigs.list();
-// [{ provider: "openai", hasApiKey: true, isEnabled: true }, ...]
+// [{ providerId: "openai", isConfigured: true, isEnabled: true }, ...]
 
 const enabledProviders = providerConfigs
-  .filter((provider) => provider.isEnabled && provider.hasApiKey)
-  .map((provider) => provider.provider);
+  .filter((provider) => provider.isEnabled && provider.isConfigured)
+  .map((provider) => provider.providerId);
 ```
 
 For example, the React example context accepts backend-owned configs directly:

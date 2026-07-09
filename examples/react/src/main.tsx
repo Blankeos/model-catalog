@@ -5,17 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card"
 import { Input } from "./components/ui/input"
 import { Badge } from "./components/ui/badge"
 import { CatalogProvider, useCatalogContext } from "./lib/model-catalog"
-import { cn } from "./lib/utils"
 import "./styles.css"
 
-const initialKeys: Record<string, string> = {
-  openai: "sk-fake-openai",
-  anthropic: "sk-fake-anthropic",
-}
+const initialConfiguredProviderIds = ["openai", "anthropic"]
+
+const maskedApiKey = "••••••••••••••••"
 
 function App() {
   return (
-    <CatalogProvider initialApiKeys={initialKeys}>
+    <CatalogProvider initialConfiguredProviderIds={initialConfiguredProviderIds}>
       <CatalogDemo />
     </CatalogProvider>
   )
@@ -26,8 +24,8 @@ function CatalogDemo() {
     catalog,
     isRefreshing,
     refreshCatalog,
-    apiKeys,
-    setApiKey,
+    configuredProviderIds,
+    setProviderConfigured,
     providerSearch,
     setProviderSearch,
     visibleProviders,
@@ -43,7 +41,7 @@ function CatalogDemo() {
       <header className="mb-4 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-zinc-900">ChatModelSelector</h1>
-          <p className="mt-0.5 text-sm text-zinc-500">Enter fake keys to change available models.</p>
+          <p className="mt-0.5 text-sm text-zinc-500">Add provider API keys to change available models.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void refreshCatalog()} disabled={isRefreshing}>
           {isRefreshing ? "Refreshing…" : "Refresh"}
@@ -52,11 +50,11 @@ function CatalogDemo() {
 
       {/* Two-column layout */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {/* Provider keys + search */}
+        {/* Provider config + search */}
         <Card className="flex max-h-[360px] flex-col">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Provider Keys</CardTitle>
+              <CardTitle>Provider Config</CardTitle>
               <Badge variant="secondary">{enabledCount} enabled</Badge>
             </div>
           </CardHeader>
@@ -67,12 +65,12 @@ function CatalogDemo() {
               placeholder="Search providers..."
               aria-label="Search providers"
             />
-            <div className="-mr-1 flex-1 space-y-1 overflow-y-auto pr-1">
+            <div className="-mr-1 flex-1 space-y-2 overflow-y-auto pr-1">
               {visibleProviders.map((provider) => {
-                const hasKey = Boolean(apiKeys[provider.id]?.trim())
+                const isConfigured = configuredProviderIds.includes(provider.id)
                 return (
-                  <label key={provider.id} className="flex items-center gap-2">
-                    <span className="flex w-28 shrink-0 items-center gap-1.5 text-xs text-zinc-600">
+                  <div key={provider.id} className="rounded-lg border border-zinc-200 p-2">
+                    <label className="mb-1.5 flex min-w-0 items-center gap-1.5 text-xs font-medium text-zinc-700">
                       {provider.logoUrl ? (
                         <img src={provider.logoUrl} alt="" className="h-4 w-4 shrink-0 rounded-sm object-contain" />
                       ) : (
@@ -81,15 +79,15 @@ function CatalogDemo() {
                         </span>
                       )}
                       <span className="truncate">{provider.name}</span>
-                    </span>
+                    </label>
                     <Input
-                      value={apiKeys[provider.id] ?? ""}
-                      onChange={(event) => setApiKey(provider.id, event.currentTarget.value)}
-                      placeholder="fake key"
-                      aria-label={`${provider.name} fake API key`}
-                      className={cn("flex-1", hasKey && "border-zinc-300")}
+                      type="password"
+                      value={isConfigured ? maskedApiKey : ""}
+                      onChange={(event) => setProviderConfigured(provider.id, event.currentTarget.value.trim().length > 0)}
+                      placeholder="API key"
+                      aria-label={`${provider.name} API key`}
                     />
-                  </label>
+                  </div>
                 )
               })}
             </div>

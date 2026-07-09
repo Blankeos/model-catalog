@@ -6,13 +6,13 @@ import type { ProviderConfig } from "./types"
  * Derives provider configuration state for the demo app.
  *
  * In a real app, `sourceProviderConfigs` can come from your backend instead of
- * local API-key inputs, e.g. `const providerConfigsQuery = createResource(...)`.
- * The backend should return safe metadata such as `{ provider, hasApiKey,
- * isEnabled }`, not raw API keys.
+ * local demo state, e.g. `const providerConfigsQuery = createResource(...)`.
+ * The backend should return safe metadata such as `{ providerId, isConfigured,
+ * isEnabled }`, not raw API keys or other secrets.
  */
 export function useProviderConfigs(
   catalog: Accessor<Catalog>,
-  apiKeys: Accessor<Record<string, string>>,
+  configuredProviderIds: Accessor<readonly string[]>,
   providerSearch: Accessor<string>,
   sourceProviderConfigs?: Accessor<ProviderConfig[] | undefined>,
 ) {
@@ -23,17 +23,17 @@ export function useProviderConfigs(
       const source = sourceProviderConfigs?.()
       if (source) return source
 
-      const keys = apiKeys()
+      const configuredProviders = new Set(configuredProviderIds())
       const next = providers().map((provider, index) => {
-        const hasApiKey = Boolean(keys[provider.id]?.trim())
+        const isConfigured = configuredProviders.has(provider.id)
         const current = previous?.[index]
-        if (current?.id === provider.id && current.hasApiKey === hasApiKey) return current
+        if (current?.id === provider.id && current.isConfigured === isConfigured) return current
 
         return {
           id: provider.id,
           provider: provider.id,
           providerId: provider.id,
-          hasApiKey,
+          isConfigured,
           isEnabled: true,
         }
       })
@@ -45,8 +45,8 @@ export function useProviderConfigs(
   )
   const enabledProviders = createMemo(() =>
     providerConfigs()
-      .filter((provider) => provider.isEnabled && provider.hasApiKey)
-      .map((provider) => provider.provider),
+      .filter((provider) => provider.isEnabled && provider.isConfigured)
+      .map((provider) => provider.providerId),
   )
   const enabledCount = () => enabledProviders().length
 

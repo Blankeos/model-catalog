@@ -10,8 +10,8 @@ type CatalogContextValue = {
   catalog: ReturnType<typeof useCatalogState>["catalog"]
   isRefreshing: ReturnType<typeof useCatalogState>["isRefreshing"]
   refreshCatalog: ReturnType<typeof useCatalogState>["refreshCatalog"]
-  apiKeys: Record<string, string>
-  setApiKey: (providerId: string, apiKey: string) => void
+  configuredProviderIds: string[]
+  setProviderConfigured: (providerId: string, isConfigured: boolean) => void
   providerSearch: string
   setProviderSearch: (query: string) => void
   providers: ListedProvider[]
@@ -28,22 +28,27 @@ const CatalogContext = createContext<CatalogContextValue | null>(null)
 const providerSearchIndexer = (provider: ListedProvider) => [provider.id, provider.name].join(" ")
 
 export function CatalogProvider(props: {
-  initialApiKeys?: Record<string, string>
+  initialConfiguredProviderIds?: string[]
   /**
    * Optional backend-owned provider config records. In production this is often
-   * the result of an API query that returns safe metadata like `hasApiKey` and
-   * `isEnabled` while keeping raw API keys server-side.
+   * the result of an API query that returns safe metadata like `isConfigured`
+   * and `isEnabled` while keeping raw API keys server-side.
    */
   providerConfigs?: ProviderConfig[]
   children: ReactNode
 }) {
   const { catalog, isRefreshing, refreshCatalog } = useCatalogState()
-  const [apiKeys, setApiKeys] = useState<Record<string, string>>(props.initialApiKeys ?? {})
+  const [configuredProviderIds, setConfiguredProviderIds] = useState<string[]>(props.initialConfiguredProviderIds ?? [])
   const [providerSearch, setProviderSearch] = useState("")
 
   const providers = useMemo(() => catalog.listProviders(), [catalog])
   const visibleProviders = useFlexSearch(providers, providerSearch, { indexerFn: providerSearchIndexer })
-  const { providerConfigs, enabledProviders, enabledCount } = useProviderConfigs(catalog, apiKeys, providerSearch, props.providerConfigs)
+  const { providerConfigs, enabledProviders, enabledCount } = useProviderConfigs(
+    catalog,
+    configuredProviderIds,
+    providerSearch,
+    props.providerConfigs,
+  )
   const { selectedModel, setSelectedModel } = useSelectedChatModel(catalog, enabledProviders)
 
   const value = useMemo<CatalogContextValue>(
@@ -51,9 +56,14 @@ export function CatalogProvider(props: {
       catalog,
       isRefreshing,
       refreshCatalog,
-      apiKeys,
-      setApiKey(providerId, apiKey) {
-        setApiKeys((current) => ({ ...current, [providerId]: apiKey }))
+      configuredProviderIds,
+      setProviderConfigured(providerId, isConfigured) {
+        setConfiguredProviderIds((current) => {
+          const next = new Set(current)
+          if (isConfigured) next.add(providerId)
+          else next.delete(providerId)
+          return [...next]
+        })
       },
       providerSearch,
       setProviderSearch,
@@ -66,8 +76,8 @@ export function CatalogProvider(props: {
       setSelectedModel,
     }),
     [
-      apiKeys,
       catalog,
+      configuredProviderIds,
       enabledCount,
       enabledProviders,
       isRefreshing,

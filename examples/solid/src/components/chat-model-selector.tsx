@@ -55,8 +55,8 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
   const providerConfigs = useProviderConfigs(() => props.catalog, () => props.providerConfigs)
   const enabledProviders = createMemo(() =>
     providerConfigs()
-      .filter((provider) => provider.isEnabled && provider.hasApiKey)
-      .map((provider) => provider.provider),
+      .filter((provider) => provider.isEnabled && provider.isConfigured)
+      .map((provider) => provider.providerId),
   )
 
   const { isFavorite, toggleFavorite } = useFavoriteModels(props.favoritesStorageKey ?? "model-catalog:favorites")
@@ -437,7 +437,7 @@ function useProviderConfigs(catalog: Accessor<Catalog>, source: Accessor<Provide
         id: provider.id,
         provider: provider.id,
         providerId: provider.id,
-        hasApiKey: true,
+        isConfigured: true,
         isEnabled: true,
       }))
   })
