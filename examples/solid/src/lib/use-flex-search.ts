@@ -35,7 +35,10 @@ export function createFlexSearchIndex<T>(
     if (!idx) return returnAllOnEmpty ? items : []
     const results = idx.search(q, { limit: items.length })
     const out: T[] = []
-    for (const i of results) out.push(items[i as number])
+    for (const i of results) {
+      const item = items[i as number]
+      if (item !== undefined) out.push(item)
+    }
     return out
   }
 

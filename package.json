@@ -76,6 +76,7 @@
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
     "clsx": "^2.1.1",
+    "flexsearch": "^0.8.212",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "solid-js": "^1.9.5",

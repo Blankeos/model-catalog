@@ -1,12 +1,11 @@
-import { createSignal, For, Show } from "solid-js"
-import { createStore } from "solid-js/store"
+import { For, Show } from "solid-js"
 import { render } from "solid-js/web"
 import { ChatModelSelector } from "./components/chat-model-selector"
 import { Button } from "./components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card"
 import { Input } from "./components/ui/input"
 import { Badge } from "./components/ui/badge"
-import { useCatalogState, useProviderConfigs, useSelectedChatModel } from "./lib/model-catalog"
+import { CatalogProvider, useCatalogContext } from "./lib/model-catalog"
 import { cn } from "./lib/utils"
 import "./styles.css"
 
@@ -16,11 +15,28 @@ const initialKeys: Record<string, string> = {
 }
 
 function App() {
-  const { catalog, isRefreshing, refreshCatalog } = useCatalogState()
-  const [apiKeys, setApiKeys] = createStore<Record<string, string>>(initialKeys)
-  const [providerSearch, setProviderSearch] = createSignal("")
-  const { visibleProviders, providerConfigs, enabledProviders, enabledCount } = useProviderConfigs(catalog, apiKeys, providerSearch)
-  const { selectedModel, setSelectedModel } = useSelectedChatModel(catalog, enabledProviders)
+  return (
+    <CatalogProvider initialApiKeys={initialKeys}>
+      <CatalogDemo />
+    </CatalogProvider>
+  )
+}
+
+function CatalogDemo() {
+  const {
+    catalog,
+    isRefreshing,
+    refreshCatalog,
+    apiKeys,
+    setApiKey,
+    providerSearch,
+    setProviderSearch,
+    visibleProviders,
+    providerConfigs,
+    enabledCount,
+    selectedModel,
+    setSelectedModel,
+  } = useCatalogContext()
 
   return (
     <main class="mx-auto w-full max-w-2xl py-10">
@@ -55,7 +71,7 @@ function App() {
             <div class="-mr-1 flex-1 space-y-1 overflow-y-auto pr-1">
               <For each={visibleProviders()}>
                 {(provider) => {
-                  const hasKey = () => Boolean(apiKeys[provider.id]?.trim())
+                  const hasKey = () => Boolean(apiKeys()[provider.id]?.trim())
                   return (
                     <label class="flex items-center gap-2">
                       <span class="flex w-28 shrink-0 items-center gap-1.5 text-xs text-zinc-600">
@@ -72,8 +88,8 @@ function App() {
                         <span class="truncate">{provider.name}</span>
                       </span>
                       <Input
-                        value={apiKeys[provider.id] ?? ""}
-                        onInput={(event) => setApiKeys(provider.id, event.currentTarget.value)}
+                        value={apiKeys()[provider.id] ?? ""}
+                        onInput={(event) => setApiKey(provider.id, event.currentTarget.value)}
                         placeholder="fake key"
                         aria-label={`${provider.name} fake API key`}
                         class={cn("flex-1", hasKey() && "border-zinc-300")}

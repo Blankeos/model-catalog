@@ -48,4 +48,22 @@ describe("catalog", () => {
     expect(catalog.getModel("anthropic", "anthropic/claude-sonnet-4")?.name).toBe("Claude Sonnet 4")
     expect(catalog.listProviders({ query: "open" }).map((p) => p.id)).toEqual(["openai"])
   })
+
+  it("filters provider query by provider id and name only", () => {
+    const catalog = createCatalog({
+      ...fixtureSnapshot,
+      providers: {
+        ...fixtureSnapshot.providers,
+        compatible: {
+          id: "compatible",
+          name: "Compatible Gateway",
+          api: "OpenAI-compatible API",
+          doc: "Supports the OpenAI chat completions format.",
+          models: {},
+        },
+      },
+    })
+
+    expect(catalog.listProviders({ query: "openai" }).map((p) => p.id)).toEqual(["openai"])
+  })
 })

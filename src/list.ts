@@ -11,7 +11,7 @@ export function listCatalogProviders(snapshot: CatalogSnapshot, options: ListPro
     .filter((provider) => {
       if (includeProviders && !includeProviders.has(provider.id)) return false
       if (excludeProviders.has(provider.id)) return false
-      if (options.query && !matchesQuery([provider.id, provider.name, provider.api, provider.doc], options.query)) return false
+      if (options.query && !matchesQuery([provider.id, provider.name], options.query)) return false
       return true
     })
     .map((provider) => ({

@@ -13,6 +13,7 @@
     "@tanstack/react-virtual": "^3.13.12",
     "@vitejs/plugin-react": "^4.3.4",
     "clsx": "^2.1.1",
+    "flexsearch": "^0.8.212",
     "model-catalog": "file:../..",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

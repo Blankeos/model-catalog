@@ -11,6 +11,7 @@
     "@kobalte/core": "^0.13.11",
     "@tanstack/solid-virtual": "^3.13.12",
     "clsx": "^2.1.1",
+    "flexsearch": "^0.8.212",
     "tailwind-merge": "^3.6.0",
     "vite": "^6.0.7",
     "vite-plugin-solid": "^2.11.0",

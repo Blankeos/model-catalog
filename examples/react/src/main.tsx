@@ -1,11 +1,10 @@
-import { useState } from "react"
 import { createRoot } from "react-dom/client"
 import { ChatModelSelector } from "./components/chat-model-selector"
 import { Button } from "./components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card"
 import { Input } from "./components/ui/input"
 import { Badge } from "./components/ui/badge"
-import { useCatalogState, useProviderConfigs, useSelectedChatModel } from "./lib/model-catalog"
+import { CatalogProvider, useCatalogContext } from "./lib/model-catalog"
 import { cn } from "./lib/utils"
 import "./styles.css"
 
@@ -15,11 +14,28 @@ const initialKeys: Record<string, string> = {
 }
 
 function App() {
-  const { catalog, isRefreshing, refreshCatalog } = useCatalogState()
-  const [apiKeys, setApiKeys] = useState<Record<string, string>>(initialKeys)
-  const [providerSearch, setProviderSearch] = useState("")
-  const { visibleProviders, providerConfigs, enabledProviders, enabledCount } = useProviderConfigs(catalog, apiKeys, providerSearch)
-  const { selectedModel, setSelectedModel } = useSelectedChatModel(catalog, enabledProviders)
+  return (
+    <CatalogProvider initialApiKeys={initialKeys}>
+      <CatalogDemo />
+    </CatalogProvider>
+  )
+}
+
+function CatalogDemo() {
+  const {
+    catalog,
+    isRefreshing,
+    refreshCatalog,
+    apiKeys,
+    setApiKey,
+    providerSearch,
+    setProviderSearch,
+    visibleProviders,
+    providerConfigs,
+    enabledCount,
+    selectedModel,
+    setSelectedModel,
+  } = useCatalogContext()
 
   return (
     <main className="mx-auto w-full max-w-2xl py-10">
@@ -68,7 +84,7 @@ function App() {
                     </span>
                     <Input
                       value={apiKeys[provider.id] ?? ""}
-                      onChange={(event) => setApiKeys((current) => ({ ...current, [provider.id]: event.currentTarget.value }))}
+                      onChange={(event) => setApiKey(provider.id, event.currentTarget.value)}
                       placeholder="fake key"
                       aria-label={`${provider.name} fake API key`}
                       className={cn("flex-1", hasKey && "border-zinc-300")}

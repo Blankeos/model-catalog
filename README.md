@@ -61,6 +61,64 @@ const models = catalog.listModels({
 });
 ```
 
+`providerConfigs` can be local UI state, but in production it is often a backend query. Store encrypted provider credentials server-side and return safe metadata to the client:
+
+```ts
+const providerConfigs = await api.providerConfigs.list();
+// [{ provider: "openai", hasApiKey: true, isEnabled: true }, ...]
+
+const enabledProviders = providerConfigs
+  .filter((provider) => provider.isEnabled && provider.hasApiKey)
+  .map((provider) => provider.provider);
+```
+
+For example, the React example context accepts backend-owned configs directly:
+
+```tsx
+function App() {
+  const { data: providerConfigs } = useQuery(api.providerConfigs.list);
+
+  return (
+    <CatalogProvider providerConfigs={providerConfigs ?? []}>
+      <ModelPicker />
+    </CatalogProvider>
+  );
+}
+```
+
+## Search
+
+The built-in `query` option is intentionally a small substring filter, not a full-text search engine. The query is split on whitespace, lowercased, and every token must appear in the item search text.
+
+```ts
+catalog.listProviders({ query: "open" });
+catalog.listModels({ query: "claude tools" });
+```
+
+Provider queries search provider `id` and `name`. Model queries search model/provider identity fields plus common model metadata such as name, description, family, capabilities, and modalities.
+
+For exact identity lookup, prefer the explicit APIs:
+
+```ts
+catalog.getProvider("openai");
+catalog.getModel("openai", "gpt-4o");
+catalog.listProviders({ includeProviders: ["openai"] });
+catalog.listModels({ includeModels: ["openai/gpt-4o"] });
+```
+
+For frontend-ranked, fuzzy, or indexed search, keep `model-catalog` as the data source and compose it with your app's search library. For instance, use something like [`examples/solid/src/lib/use-flex-search.ts`](./examples/solid/src/lib/use-flex-search.ts) to accomplish richer search.
+
+Define the search index in an app-wide context so the index is created once and reused by your UI:
+
+```ts
+const [providerSearch, setProviderSearch] = createSignal("");
+const providers = createMemo(() => catalog().listProviders());
+
+const results = createFlexSearch(providers, providerSearch, {
+  indexerFn: (provider) => [provider.id, provider.name].join(" "),
+});
+```
+
 ## Custom generators
 
 Generators run during `refreshSnapshot()` and receive a tiny context with `ctx.addProvider()`, `ctx.addModel()`, `ctx.updateProvider()`, and `ctx.updateModel()`.
