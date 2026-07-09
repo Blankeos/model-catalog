@@ -1,6 +1,6 @@
 {
   "name": "model-catalog",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "A tiny JS/TS library and CLI for building AI model catalogs and listing BYOK-available models.",
   "type": "module",
   "license": "MIT",
