@@ -1,23 +1,13 @@
 import { useEffect, useMemo, useState } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { type Catalog, type ListedModel } from "model-catalog"
+import type { ChatModelValue, ProviderConfig } from "../lib/model-catalog"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
+import { IconChevronDown, IconStar } from "./icons"
 import { cn } from "../lib/utils"
 
-export type ChatModelValue = {
-  provider: string
-  modelId: string
-  thinking?: string
-}
-
-export type ProviderConfig = {
-  id: string
-  provider: string
-  providerId: string | null
-  hasApiKey: boolean
-  isEnabled: boolean
-}
+export type { ChatModelValue, ProviderConfig }
 
 export type ChatModelSelectorProps = {
   catalog: Catalog
@@ -188,7 +178,7 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
             ) : (
               <span className="text-zinc-500">Select model...</span>
             )}
-            {!props.iconOnly ? <ChevronDownIcon className="h-3 w-3 shrink-0 text-zinc-500" /> : null}
+            {!props.iconOnly ? <IconChevronDown className="h-3 w-3 shrink-0 text-zinc-500" /> : null}
           </button>
         </PopoverTrigger>
         <PopoverContent
@@ -283,7 +273,7 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
                                 toggleFavorite(model.provider, model.modelId)
                               }}
                             >
-                              <StarIcon filled={favorite} />
+                              <IconStar filled={favorite} className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         </div>
@@ -519,31 +509,3 @@ function writeJson(key: string, value: unknown) {
   window.localStorage.setItem(key, JSON.stringify(value))
 }
 
-function ChevronDownIcon(props: { className?: string }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className={props.className}>
-      <path
-        fillRule="evenodd"
-        d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
-        clipRule="evenodd"
-      />
-    </svg>
-  )
-}
-
-function StarIcon(props: { filled: boolean }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill={props.filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-3.5 w-3.5"
-    >
-      <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-    </svg>
-  )
-}

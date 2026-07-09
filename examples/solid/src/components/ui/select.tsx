@@ -2,6 +2,7 @@ import type { PolymorphicProps } from "@kobalte/core/polymorphic"
 import * as SelectPrimitive from "@kobalte/core/select"
 import type { ValidComponent } from "solid-js"
 import { splitProps } from "solid-js"
+import { IconCheck, IconChevronDown } from "../icons"
 import { cn } from "../../lib/utils"
 
 export const Select = SelectPrimitive.Root
@@ -29,13 +30,7 @@ export const SelectTrigger = <T extends ValidComponent = "button">(
     >
       {local.children}
       <SelectPrimitive.Icon>
-        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="h-3 w-3 shrink-0 text-zinc-500">
-          <path
-            fill-rule="evenodd"
-            d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
-            clip-rule="evenodd"
-          />
-        </svg>
+        <IconChevronDown class="h-3 w-3 shrink-0 text-zinc-500" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   )
@@ -87,13 +82,7 @@ export const SelectItem = <T extends ValidComponent = "li">(
       {...others}
     >
       <SelectPrimitive.ItemIndicator class="absolute right-1.5 flex h-3.5 w-3.5 items-center justify-center">
-        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="h-3 w-3">
-          <path
-            fill-rule="evenodd"
-            d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
-            clip-rule="evenodd"
-          />
-        </svg>
+        <IconCheck class="h-3 w-3" />
       </SelectPrimitive.ItemIndicator>
       <SelectPrimitive.ItemLabel>{local.children}</SelectPrimitive.ItemLabel>
     </SelectPrimitive.Item>

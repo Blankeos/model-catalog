@@ -1,103 +1,26 @@
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
+import { createSignal, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { render } from "solid-js/web"
-import { createCatalog, refreshSnapshot, type Catalog, type CatalogSnapshot } from "model-catalog"
-import fallbackSnapshot from "../../catalog-snapshot.json"
-import { ChatModelSelector, type ChatModelValue, type ProviderConfig } from "./components/chat-model-selector"
+import { ChatModelSelector } from "./components/chat-model-selector"
 import { Button } from "./components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card"
 import { Input } from "./components/ui/input"
 import { Badge } from "./components/ui/badge"
+import { useCatalogState, useProviderConfigs, useSelectedChatModel } from "./lib/model-catalog"
 import { cn } from "./lib/utils"
 import "./styles.css"
 
-const snapshotStorageKey = "model-catalog:example:snapshot"
-const cachedSnapshot = readSnapshot()
-const initialCatalog = createCatalog(cachedSnapshot ?? (fallbackSnapshot as CatalogSnapshot))
 const initialKeys: Record<string, string> = {
   openai: "sk-fake-openai",
   anthropic: "sk-fake-anthropic",
 }
 
 function App() {
-  const [catalog, setCatalog] = createSignal<Catalog>(initialCatalog)
-  const [isRefreshing, setIsRefreshing] = createSignal(false)
+  const { catalog, isRefreshing, refreshCatalog } = useCatalogState()
   const [apiKeys, setApiKeys] = createStore<Record<string, string>>(initialKeys)
   const [providerSearch, setProviderSearch] = createSignal("")
-
-  const refreshCatalog = async () => {
-    setIsRefreshing(true)
-    try {
-      const snapshot = await refreshSnapshot()
-      writeSnapshot(snapshot)
-      setCatalog(createCatalog(snapshot))
-    } catch {
-      // Keep the cached snapshot available when the network is offline.
-    } finally {
-      setIsRefreshing(false)
-    }
-  }
-
-  const providers = createMemo(() => catalog().listProviders())
-  const visibleProviders = createMemo(() => catalog().listProviders({ query: providerSearch() }))
-  const immediateProviderConfigs = createMemo<ProviderConfig[]>(
-    (previous) => {
-      const next = providers().map((provider, index) => {
-        const hasApiKey = Boolean(apiKeys[provider.id]?.trim())
-        const current = previous?.[index]
-        if (current?.id === provider.id && current.hasApiKey === hasApiKey) return current
-
-        return {
-          id: provider.id,
-          provider: provider.id,
-          providerId: provider.id,
-          hasApiKey,
-          isEnabled: true,
-        }
-      })
-
-      if (previous && previous.length === next.length && next.every((provider, index) => provider === previous[index])) return previous
-      return next
-    },
-    [],
-  )
-  const providerConfigs = immediateProviderConfigs
-  const enabledProviders = createMemo(() =>
-    providerConfigs()
-      .filter((provider) => provider.hasApiKey)
-      .map((provider) => provider.provider),
-  )
-  const availableModels = createMemo(() =>
-    catalog().listModels({
-      includeProviders: enabledProviders(),
-      outputModalities: ["text"],
-      excludeDeprecated: true,
-      groupBy: "providerId",
-    }),
-  )
-  const firstAvailable = createMemo<ChatModelValue | null>(() => {
-    const first = availableModels().groups[0]?.models[0]
-    return first ? { provider: first.providerId, modelId: first.modelId } : null
-  })
-  const [selectedModel, setSelectedModel] = createSignal<ChatModelValue | null>(firstAvailable())
-  const selectedProvider = createMemo(() => selectedModel()?.provider ?? null)
-
-  createEffect(() => {
-    const provider = selectedProvider()
-    if (!provider) {
-      const fallback = firstAvailable()
-      if (!fallback) return
-      setSelectedModel(fallback)
-      return
-    }
-    if (!enabledProviders().includes(provider)) setSelectedModel(firstAvailable())
-  })
-
-  const updateApiKey = (providerId: string, value: string) => {
-    setApiKeys(providerId, value)
-  }
-
-  const enabledCount = () => enabledProviders().length
+  const { visibleProviders, providerConfigs, enabledProviders, enabledCount } = useProviderConfigs(catalog, apiKeys, providerSearch)
+  const { selectedModel, setSelectedModel } = useSelectedChatModel(catalog, enabledProviders)
 
   return (
     <main class="mx-auto w-full max-w-2xl py-10">
@@ -150,7 +73,7 @@ function App() {
                       </span>
                       <Input
                         value={apiKeys[provider.id] ?? ""}
-                        onInput={(event) => updateApiKey(provider.id, event.currentTarget.value)}
+                        onInput={(event) => setApiKeys(provider.id, event.currentTarget.value)}
                         placeholder="fake key"
                         aria-label={`${provider.name} fake API key`}
                         class={cn("flex-1", hasKey() && "border-zinc-300")}
@@ -186,22 +109,6 @@ function App() {
       </div>
     </main>
   )
-}
-
-function readSnapshot() {
-  if (typeof window === "undefined") return null
-  const raw = window.localStorage.getItem(snapshotStorageKey)
-  if (!raw) return null
-  try {
-    return JSON.parse(raw) as CatalogSnapshot
-  } catch {
-    return null
-  }
-}
-
-function writeSnapshot(snapshot: CatalogSnapshot) {
-  if (typeof window === "undefined") return
-  window.localStorage.setItem(snapshotStorageKey, JSON.stringify(snapshot))
 }
 
 render(() => <App />, document.getElementById("root")!)
