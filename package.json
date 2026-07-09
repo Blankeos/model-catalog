@@ -14,8 +14,14 @@
     "url": "https://github.com/blankeos/model-catalog/issues"
   },
   "sideEffects": false,
+  "engines": {
+    "node": ">=20.10"
+  },
   "bin": {
     "model-catalog": "./dist/cli.js"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "exports": {
     ".": {
@@ -31,6 +37,12 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "changeset": "changeset",
+    "ci": "bun run validate",
+    "lint": "bun run typecheck",
+    "pack:check": "bun pm pack --dry-run",
+    "prepack": "bun run build",
+    "publish-ci": "bun run validate && changeset publish",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:examples": "bun run typecheck:examples:solid && bun run typecheck:examples:react",
     "typecheck:examples:solid": "tsc -p examples/solid/tsconfig.json --noEmit",
@@ -41,7 +53,7 @@
     "build:example:react": "vite build --config examples/react/vite.config.ts",
     "build:example:snapshot": "node dist/cli.js refresh --out examples/catalog-snapshot.json",
     "test": "vitest run",
-    "validate": "bun run typecheck && bun run typecheck:examples && bun run test && bun run build"
+    "validate": "bun run typecheck && bun run typecheck:examples && bun run test && bun run build && bun run pack:check"
   },
   "keywords": [
     "ai",
@@ -51,6 +63,8 @@
     "byok"
   ],
   "devDependencies": {
+    "@changesets/changelog-github": "^0.5.2",
+    "@changesets/cli": "^2.29.8",
     "@tailwindcss/vite": "^4.3.2",
     "@tanstack/react-virtual": "^3.13.12",
     "@tanstack/solid-virtual": "^3.13.12",
