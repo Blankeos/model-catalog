@@ -1,0 +1,53 @@
+{
+  "name": "model-catalog",
+  "version": "0.0.0",
+  "description": "A tiny JS/TS library and CLI for building AI model catalogs and listing BYOK-available models.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Blankeos (Carlo Taleon)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blankeos/model-catalog.git"
+  },
+  "homepage": "https://github.com/blankeos/model-catalog#readme",
+  "bugs": {
+    "url": "https://github.com/blankeos/model-catalog/issues"
+  },
+  "sideEffects": false,
+  "bin": {
+    "model-catalog": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:examples": "tsc -p tsconfig.examples.json --noEmit",
+    "test": "vitest run",
+    "validate": "bun run typecheck && bun run typecheck:examples && bun run test && bun run build"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "models.dev",
+    "catalog",
+    "byok"
+  ],
+  "devDependencies": {
+    "@tanstack/solid-virtual": "^3.13.12",
+    "@types/node": "^22.10.2",
+    "solid-js": "^1.9.5",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
+  }
+}
