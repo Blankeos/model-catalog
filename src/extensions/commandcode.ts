@@ -1,4 +1,4 @@
-import type { ApiCatalogGenerator, Modality, ModelCapability, ModelInput, ProviderInput } from "../types.js"
+import type { ApiCatalogGenerator, Modality, ModelInput, ProviderInput } from "../types.js"
 
 export const COMMANDCODE_PROVIDER_ID = "commandcode"
 export const COMMANDCODE_PROVIDER_NAME = "Command Code"
@@ -79,31 +79,23 @@ function commandCodeModelInput(model: CommandCodeModel): ModelInput {
   const id = model.id.trim()
   const name = model.name?.trim() || id
   const inputModalities = supportsImageInput(id, model.capabilities ?? [], model.modalities) ? ["text", "image"] : ["text"]
-  const capabilities = new Set<ModelCapability>(["tool_call", "temperature"])
-
-  if (supportsReasoningEffort(id, name)) capabilities.add("reasoning")
-  if (inputModalities.includes("image")) capabilities.add("attachment")
-  if (inputModalities.includes("image")) capabilities.add("image_input")
 
   return {
     id,
     name,
     family: modelFamily(id),
-    capabilities: [...capabilities].sort(),
+    attachment: inputModalities.includes("image"),
+    reasoning: supportsReasoningEffort(id, name),
+    tool_call: true,
+    structured_output: false,
+    temperature: true,
+    open_weights: false,
     modalities: {
       input: inputModalities,
       output: model.modalities?.output ?? ["text"],
     },
-    limits: model.context_length ? { context: model.context_length, output: DEFAULT_OUTPUT_LIMIT } : undefined,
-    metadata: isAnthropicModel(id)
-      ? {
-          transport: {
-            npm: COMMANDCODE_ANTHROPIC_NPM_PACKAGE,
-            api: COMMANDCODE_BASE_URL,
-          },
-        }
-      : undefined,
-    raw: model,
+    limit: model.context_length ? { context: model.context_length, output: DEFAULT_OUTPUT_LIMIT } : undefined,
+    provider: isAnthropicModel(id) ? { npm: COMMANDCODE_ANTHROPIC_NPM_PACKAGE, api: COMMANDCODE_BASE_URL } : undefined,
   }
 }
 

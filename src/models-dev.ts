@@ -1,5 +1,5 @@
-import type { Model, ModelCapability, ModelInput, Provider, ProviderInput, RefreshSource } from "./types.js"
-import { normalizeModel, normalizeProvider } from "./normalize.js"
+import type { Model, ModelInput, Provider, ProviderInput, RefreshSource } from "./types.js"
+import { normalizeModel, normalizeProvider, normalizeReasoningOptions } from "./normalize.js"
 
 export const MODELS_DEV_API_URL = "https://models.dev/api.json"
 export const MODELS_DEV_LOGO_BASE_URL = "https://models.dev/logos"
@@ -35,7 +35,7 @@ export function normalizeModelsDevResponse(raw: unknown): Record<string, Provide
 }
 
 function normalizeModelsDevProvider(providerId: string, raw: Record<string, unknown>): Provider {
-  const modelsRaw = raw.models && typeof raw.models === "object" && !Array.isArray(raw.models) ? (raw.models as Record<string, unknown>) : {}
+  const modelsRaw = readRecord(raw.models) ?? {}
   const input: ProviderInput = {
     id: readString(raw.id) ?? providerId,
     name: readString(raw.name) ?? titleize(providerId),
@@ -43,20 +43,7 @@ function normalizeModelsDevProvider(providerId: string, raw: Record<string, unkn
     doc: readString(raw.doc),
     env: readStringArray(raw.env),
     npm: readString(raw.npm),
-    logoUrl: readString(raw.logoUrl) ?? readString(raw.logo_url) ?? readString(raw.icon) ?? modelsDevLogoUrl(providerId),
-    metadata: {},
     models: {},
-  }
-
-  for (const key of ["id", "name", "api", "doc", "env", "npm", "models", "logoUrl", "logo_url", "icon"]) {
-    // omitted from metadata
-    void key
-  }
-
-  for (const [key, value] of Object.entries(raw)) {
-    if (["id", "name", "api", "doc", "env", "npm", "models", "logoUrl", "logo_url", "icon"].includes(key)) continue
-    const json = toJsonValue(value)
-    if (json !== undefined) input.metadata![key] = json
   }
 
   const provider = normalizeProvider(input)
@@ -68,81 +55,37 @@ function normalizeModelsDevProvider(providerId: string, raw: Record<string, unkn
     provider.models[model.id] = model
   }
 
-  if (Object.keys(provider.metadata ?? {}).length === 0) delete provider.metadata
-
   return provider
 }
 
 function normalizeModelsDevModel(modelId: string, providerId: string, raw: Record<string, unknown>): Model {
-  const inputModalities = readStringArray((raw.modalities as Record<string, unknown> | undefined)?.input)
-  const outputModalities = readStringArray((raw.modalities as Record<string, unknown> | undefined)?.output)
-  const features = {
-    attachment: readBoolean(raw.attachment),
-    reasoning: readBoolean(raw.reasoning),
-    toolCall: readBoolean(raw.tool_call),
-    temperature: readBoolean(raw.temperature),
-    structuredOutput: readBoolean(raw.structured_output),
-    openWeights: readBoolean(raw.open_weights),
-  }
   const input: ModelInput = {
     id: readString(raw.id) ?? modelId,
     name: readString(raw.name) ?? modelId,
-    providerId,
     description: readString(raw.description),
     family: readString(raw.family),
-    modalities: {
-      input: inputModalities,
-      output: outputModalities,
-    },
-    capabilities: modelCapabilitiesFromRaw(raw, features, inputModalities, outputModalities),
-    features,
-    limits: {
-      context: readNumber((raw.limit as Record<string, unknown> | undefined)?.context) ?? readNumber((raw.limits as Record<string, unknown> | undefined)?.context),
-      output: readNumber((raw.limit as Record<string, unknown> | undefined)?.output) ?? readNumber((raw.limits as Record<string, unknown> | undefined)?.output),
-    },
-    pricing: {
-      input: readNumber((raw.cost as Record<string, unknown> | undefined)?.input) ?? readNumber((raw.pricing as Record<string, unknown> | undefined)?.input),
-      output: readNumber((raw.cost as Record<string, unknown> | undefined)?.output) ?? readNumber((raw.pricing as Record<string, unknown> | undefined)?.output),
-      cacheRead: readNumber((raw.cost as Record<string, unknown> | undefined)?.cache_read) ?? readNumber((raw.pricing as Record<string, unknown> | undefined)?.cacheRead),
-      cacheWrite: readNumber((raw.cost as Record<string, unknown> | undefined)?.cache_write) ?? readNumber((raw.pricing as Record<string, unknown> | undefined)?.cacheWrite),
-    },
-    knowledgeCutoff: readString(raw.knowledge),
-    releaseDate: readString(raw.release_date),
-    lastUpdated: readString(raw.last_updated),
-    deprecated: readBoolean(raw.deprecated) || readString(raw.status) === "deprecated",
+    attachment: readBoolean(raw.attachment),
+    reasoning: readBoolean(raw.reasoning),
+    reasoning_options: normalizeReasoningOptions(raw.reasoning_options),
+    tool_call: readBoolean(raw.tool_call),
+    structured_output: readBoolean(raw.structured_output),
+    temperature: readBoolean(raw.temperature),
+    knowledge: readString(raw.knowledge),
+    release_date: readString(raw.release_date),
+    last_updated: readString(raw.last_updated),
+    modalities: normalizeModalities(raw.modalities),
+    open_weights: readBoolean(raw.open_weights),
+    limit: readRecord(raw.limit) as ModelInput["limit"],
+    cost: readRecord(raw.cost) as ModelInput["cost"],
+    provider: readRecord(raw.provider) as ModelInput["provider"],
+    interleaved: readRecord(raw.interleaved),
+    experimental: readRecord(raw.experimental),
     status: readString(raw.status) as ModelInput["status"],
     metadata: {},
-    raw,
   }
 
   for (const [key, value] of Object.entries(raw)) {
-    if (
-      [
-        "id",
-        "name",
-        "description",
-        "family",
-        "modalities",
-        "attachment",
-        "reasoning",
-        "reasoning_options",
-        "tool_call",
-        "temperature",
-        "structured_output",
-        "open_weights",
-        "knowledge",
-        "release_date",
-        "last_updated",
-        "deprecated",
-        "status",
-        "limit",
-        "limits",
-        "cost",
-        "pricing",
-      ].includes(key)
-    ) {
-      continue
-    }
+    if (MODELS_DEV_MODEL_KEYS.has(key)) continue
     const json = toJsonValue(value)
     if (json !== undefined) input.metadata![key] = json
   }
@@ -152,28 +95,42 @@ function normalizeModelsDevModel(modelId: string, providerId: string, raw: Recor
   return model
 }
 
-function modelCapabilitiesFromRaw(
-  raw: Record<string, unknown>,
-  features: NonNullable<ModelInput["features"]>,
-  inputModalities: string[] | undefined,
-  outputModalities: string[] | undefined
-): ModelCapability[] {
-  const out = new Set<ModelCapability>()
-  if (features.attachment) out.add("attachment")
-  if (features.reasoning) out.add("reasoning")
-  if (features.toolCall) out.add("tool_call")
-  if (features.temperature) out.add("temperature")
-  if (features.structuredOutput) out.add("structured_output")
-  if (features.openWeights) out.add("open_weights")
-  if (readBoolean(raw.batch)) out.add("batch")
-  if (inputModalities?.includes("image")) out.add("image_input")
-  if (outputModalities?.includes("image")) out.add("image_output")
-  if (inputModalities?.includes("audio")) out.add("audio_input")
-  if (outputModalities?.includes("audio")) out.add("audio_output")
-  if (inputModalities?.includes("video")) out.add("video_input")
-  if (inputModalities?.includes("pdf")) out.add("pdf_input")
-  if (outputModalities?.includes("embedding")) out.add("embedding")
-  return [...out].sort()
+const MODELS_DEV_MODEL_KEYS = new Set([
+  "id",
+  "name",
+  "description",
+  "family",
+  "attachment",
+  "reasoning",
+  "reasoning_options",
+  "tool_call",
+  "structured_output",
+  "temperature",
+  "knowledge",
+  "release_date",
+  "last_updated",
+  "modalities",
+  "open_weights",
+  "limit",
+  "cost",
+  "provider",
+  "interleaved",
+  "experimental",
+  "status",
+])
+
+function normalizeModalities(value: unknown): ModelInput["modalities"] | undefined {
+  const raw = readRecord(value)
+  if (!raw) return undefined
+  return {
+    input: readStringArray(raw.input),
+    output: readStringArray(raw.output),
+  }
+}
+
+function readRecord(value: unknown): Record<string, import("./types.js").JsonValue> | undefined {
+  const json = toJsonValue(value)
+  return json && typeof json === "object" && !Array.isArray(json) ? json : undefined
 }
 
 function readString(value: unknown): string | undefined {
@@ -182,10 +139,6 @@ function readString(value: unknown): string | undefined {
 
 function readStringArray(value: unknown): string[] | undefined {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : undefined
-}
-
-function readNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined
 }
 
 function readBoolean(value: unknown): boolean | undefined {
@@ -203,10 +156,7 @@ function titleize(value: string): string {
 function toJsonValue(value: unknown): import("./types.js").JsonValue | undefined {
   if (value === null) return null
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value
-  if (Array.isArray(value)) {
-    const items = value.map(toJsonValue).filter((item): item is import("./types.js").JsonValue => item !== undefined)
-    return items
-  }
+  if (Array.isArray(value)) return value.map(toJsonValue).filter((item): item is import("./types.js").JsonValue => item !== undefined)
   if (typeof value === "object" && value) {
     const out: Record<string, import("./types.js").JsonValue> = {}
     for (const [key, nested] of Object.entries(value)) {

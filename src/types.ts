@@ -13,6 +13,7 @@ export type Modality =
   | "unknown"
   | (string & {})
 
+/** Derived list/search capability names. These are not stored on model records. */
 export type ModelCapability =
   | "attachment"
   | "reasoning"
@@ -30,6 +31,34 @@ export type ModelCapability =
   | "pdf_input"
   | (string & {})
 
+export type ReasoningOption = {
+  type: string
+  values?: string[]
+  min?: number
+  max?: number
+  [key: string]: JsonValue | undefined
+}
+
+export type ModelProvider = {
+  npm?: string
+  api?: string
+  [key: string]: JsonValue | undefined
+}
+
+export type ModelLimit = {
+  context?: number
+  output?: number
+  [key: string]: JsonValue | undefined
+}
+
+export type ModelCost = {
+  input?: number
+  output?: number
+  cache_read?: number
+  cache_write?: number
+  [key: string]: JsonValue | undefined
+}
+
 export type Provider = {
   id: string
   name: string
@@ -45,41 +74,29 @@ export type Provider = {
 export type Model = {
   id: string
   name: string
-  providerId: string
   description?: string
   family?: string
+  attachment: boolean
+  reasoning: boolean
+  reasoning_options: ReasoningOption[]
+  tool_call: boolean
+  structured_output: boolean
+  temperature: boolean
+  knowledge?: string
+  release_date?: string
+  last_updated?: string
   modalities?: {
     input?: Modality[]
     output?: Modality[]
   }
-  capabilities: ModelCapability[]
-  features?: {
-    attachment?: boolean
-    reasoning?: boolean
-    toolCall?: boolean
-    temperature?: boolean
-    structuredOutput?: boolean
-    openWeights?: boolean
-    [key: string]: boolean | undefined
-  }
-  limits?: {
-    context?: number
-    output?: number
-  }
-  pricing?: {
-    input?: number
-    output?: number
-    cacheRead?: number
-    cacheWrite?: number
-    [key: string]: number | undefined
-  }
-  knowledgeCutoff?: string
-  releaseDate?: string
-  lastUpdated?: string
-  deprecated?: boolean
+  open_weights: boolean
+  limit?: ModelLimit
+  cost?: ModelCost
+  provider?: ModelProvider
+  interleaved?: Record<string, JsonValue>
+  experimental?: Record<string, JsonValue>
   status?: "active" | "deprecated" | "preview" | "unknown" | (string & {})
   metadata?: Record<string, JsonValue>
-  raw?: unknown
 }
 
 export type SourceMetadata = {
@@ -127,24 +144,29 @@ export type ProviderInput = {
 export type ModelInput = {
   id: string
   name?: string
-  providerId?: string
   description?: string
   family?: string
+  attachment?: boolean
+  reasoning?: boolean
+  reasoning_options?: ReasoningOption[]
+  tool_call?: boolean
+  structured_output?: boolean
+  temperature?: boolean
+  knowledge?: string
+  release_date?: string
+  last_updated?: string
   modalities?: {
     input?: Modality[]
     output?: Modality[]
   }
-  capabilities?: ModelCapability[] | Partial<Record<ModelCapability, boolean>>
-  features?: Model["features"]
-  limits?: Model["limits"]
-  pricing?: Model["pricing"]
-  knowledgeCutoff?: string
-  releaseDate?: string
-  lastUpdated?: string
-  deprecated?: boolean
+  open_weights?: boolean
+  limit?: ModelLimit
+  cost?: ModelCost
+  provider?: ModelProvider
+  interleaved?: Record<string, JsonValue>
+  experimental?: Record<string, JsonValue>
   status?: Model["status"]
   metadata?: Record<string, JsonValue>
-  raw?: unknown
 }
 
 export type ListProvidersOptions = {
@@ -172,6 +194,7 @@ export type ListedModel = {
   description?: string
   family?: string
   capabilities: ModelCapability[]
+  reasoningOptions: ReasoningOption[]
   modalities?: Model["modalities"]
   context?: number
   outputLimit?: number

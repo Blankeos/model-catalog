@@ -10,11 +10,13 @@ import {
 } from "solid-js"
 import { type Catalog, type ListedModel } from "model-catalog"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
+import { Select, SelectContent, SelectItem, SelectListbox, SelectTrigger, SelectValue } from "./ui/select"
 import { cn } from "../lib/utils"
 
 export type ChatModelValue = {
   provider: string
   modelId: string
+  thinking?: string
 }
 
 export type ProviderConfig = {
@@ -52,6 +54,11 @@ type ProviderFacetOption = {
   value: string
   label: string
   icon?: string
+}
+
+type ThinkingOption = {
+  value: string
+  label: string
 }
 
 export function ChatModelSelector(props: ChatModelSelectorProps) {
@@ -138,6 +145,11 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
     if (!value) return null
     return allModels().find((model) => model.provider === value.provider && model.modelId === value.modelId) ?? null
   })
+  const thinkingOptions = createMemo(() => effortOptions(currentLabel()?.listed.reasoningOptions))
+  const selectedThinking = createMemo(() => {
+    const options = thinkingOptions()
+    return options.some((option) => option.value === props.value?.thinking) ? props.value?.thinking : options[0]?.value
+  })
 
   const allProviders = createMemo(() => {
     const seen = new Map<string, ProviderFacetOption>()
@@ -153,14 +165,22 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
   })
 
   const onSelect = (model: TextModelOption) => {
-    const next = { provider: model.provider, modelId: model.modelId }
+    const next = { provider: model.provider, modelId: model.modelId, thinking: effortOptions(model.listed.reasoningOptions)[0]?.value }
     props.onChange(next)
     setLastModel(next)
     handleOpenChange(false)
   }
 
+  const onThinkingChange = (thinking: string) => {
+    if (!props.value) return
+    const next = { ...props.value, thinking }
+    props.onChange(next)
+    setLastModel(next)
+  }
+
   return (
     <div class={cn("inline-block", props.class)}>
+      <div class="flex items-center gap-1.5">
       <Popover open={open()} onOpenChange={handleOpenChange} placement="top-end">
         <PopoverTrigger
           class={cn(
@@ -302,6 +322,31 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
           </Show>
         </PopoverContent>
       </Popover>
+      <Show when={thinkingOptions().length > 0}>
+        <Select<ThinkingOption>
+          options={thinkingOptions()}
+          optionValue="value"
+          optionTextValue="label"
+          value={thinkingOptions().find((option) => option.value === selectedThinking()) ?? null}
+          onChange={(option) => {
+            if (option) onThinkingChange(option.value)
+          }}
+          itemComponent={(props) => (
+            <SelectItem item={props.item}>{props.item.rawValue.label}</SelectItem>
+          )}
+        >
+          <SelectTrigger aria-label="Thinking">
+            <span class="text-zinc-600">Thinking</span>
+            <SelectValue<ThinkingOption>>
+              {(state) => state.selectedOption()?.label}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectListbox />
+          </SelectContent>
+        </Select>
+      </Show>
+      </div>
     </div>
   )
 }
@@ -446,6 +491,17 @@ function toTextModelOption(model: ListedModel): TextModelOption {
     providerLogoUrl: model.providerLogoUrl,
     listed: model,
   }
+}
+
+function effortOptions(reasoningOptions: ListedModel["reasoningOptions"] | undefined): ThinkingOption[] {
+  const effort = reasoningOptions?.find((option) => option.type.toLowerCase() === "effort")
+  return (effort?.values ?? []).map((value) => ({ value, label: labelizeThinking(value) }))
+}
+
+function labelizeThinking(value: string) {
+  return value
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
 function sortPreferredModels(

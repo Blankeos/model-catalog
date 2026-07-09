@@ -30,8 +30,10 @@ describe("builtin extension generators", () => {
     expect(model).toMatchObject({
       name: "Composer 2.5",
       family: "grok-build",
-      capabilities: expect.arrayContaining(["tool_call", "structured_output", "temperature", "pdf_input"]),
-      limits: { context: 256000, output: 256000 },
+      tool_call: true,
+      structured_output: true,
+      temperature: true,
+      limit: { context: 256000, output: 256000 },
     })
   })
 
@@ -46,8 +48,10 @@ describe("builtin extension generators", () => {
     expect(provider.models?.[0]).toMatchObject({
       id: "deepseek/deepseek-v4-flash",
       family: "deepseek",
-      capabilities: expect.arrayContaining(["reasoning", "tool_call", "temperature"]),
-      limits: { context: 1_000_000, output: 8192 },
+      reasoning: true,
+      tool_call: true,
+      temperature: true,
+      limit: { context: 1_000_000, output: 8192 },
     })
   })
 

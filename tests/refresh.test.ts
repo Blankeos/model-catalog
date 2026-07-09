@@ -11,6 +11,7 @@ describe("models.dev normalization and refresh", () => {
             id: "claude-sonnet-4",
             name: "Claude Sonnet 4",
             reasoning: true,
+            reasoning_options: [{ type: "effort", values: ["low", 2, "medium", null, "high"] }],
             tool_call: true,
             modalities: { input: ["text", "image"], output: ["text"] },
             limit: { context: 200000, output: 64000 },
@@ -21,8 +22,9 @@ describe("models.dev normalization and refresh", () => {
     })
 
     expect(modelsDevLogoUrl("anthropic")).toBe("https://models.dev/logos/anthropic.svg")
-    expect(providers.anthropic?.logoUrl).toBe("https://models.dev/logos/anthropic.svg")
-    expect(providers.anthropic?.models["claude-sonnet-4"]?.capabilities).toEqual(expect.arrayContaining(["reasoning", "tool_call", "image_input"]))
+    expect(providers.anthropic?.logoUrl).toBeUndefined()
+    expect(providers.anthropic?.models["claude-sonnet-4"]).toMatchObject({ reasoning: true, tool_call: true, attachment: false })
+    expect(providers.anthropic?.models["claude-sonnet-4"]?.reasoning_options).toEqual([{ type: "effort", values: ["low", "medium", "high"] }])
   })
 
   it("refreshes from source and applies generators", async () => {
@@ -34,17 +36,17 @@ describe("models.dev normalization and refresh", () => {
         defineGenerator({
           id: "custom",
           generate(ctx) {
-            ctx.addProvider({ id: "company", name: "Company", models: [{ id: "fast", name: "Fast", capabilities: ["tool_call"] }] })
-            ctx.addModel("openai", { id: "gpt-custom", name: "GPT Custom", capabilities: ["reasoning"] })
+            ctx.addProvider({ id: "company", name: "Company", models: [{ id: "fast", name: "Fast", tool_call: true }] })
+            ctx.addModel("openai", { id: "gpt-custom", name: "GPT Custom", reasoning: true, reasoning_options: [{ type: "effort", values: ["low", "high"] }] })
           },
         }),
       ],
     })
 
     expect(snapshot.schemaVersion).toBe(1)
-    expect(snapshot.providers.openai?.logoUrl).toBe("https://models.dev/logos/openai.svg")
+    expect(snapshot.providers.openai?.logoUrl).toBeUndefined()
     expect(snapshot.providers.company?.models.fast?.name).toBe("Fast")
-    expect(snapshot.providers.openai?.models["gpt-custom"]?.capabilities).toContain("reasoning")
+    expect(snapshot.providers.openai?.models["gpt-custom"]?.reasoning_options).toEqual([{ type: "effort", values: ["low", "high"] }])
     expect(snapshot.generators.map((g) => g.id)).toEqual(["catalog-extensions", "custom"])
   })
 })

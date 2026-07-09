@@ -1,6 +1,7 @@
 import type { CatalogSnapshot, GroupedListModelsOptions, GroupedModelList, ListedModel, ListedProvider, ListModelsOptions, ListProvidersOptions, Model, Provider } from "./types.js"
-import { hasAllCapabilities, hasModalities, modelKey, sortedProviders } from "./normalize.js"
+import { hasAllCapabilities, hasModalities, modelCapabilities, modelKey, sortedProviders } from "./normalize.js"
 import { capabilitySearchTerms, matchesQuery } from "./search.js"
+import { modelsDevLogoUrl } from "./models-dev.js"
 
 export function listCatalogProviders(snapshot: CatalogSnapshot, options: ListProvidersOptions = {}): ListedProvider[] {
   const includeProviders = options.includeProviders ? new Set(options.includeProviders) : undefined
@@ -16,7 +17,7 @@ export function listCatalogProviders(snapshot: CatalogSnapshot, options: ListPro
     .map((provider) => ({
       id: provider.id,
       name: provider.name,
-      logoUrl: provider.logoUrl,
+      logoUrl: provider.logoUrl ?? modelsDevLogoUrl(provider.id),
       modelCount: Object.keys(provider.models).length,
       provider,
     }))
@@ -45,8 +46,8 @@ export function listCatalogModels(snapshot: CatalogSnapshot, options: ListModels
       if (!hasAllCapabilities(model, requiredCapabilities(options))) continue
       if (!hasModalities(model.modalities?.input, options.inputModalities)) continue
       if (!hasModalities(model.modalities?.output, options.outputModalities)) continue
-      if (options.minContext !== undefined && (model.limits?.context ?? 0) < options.minContext) continue
-      if (options.excludeDeprecated && (model.deprecated || model.status === "deprecated")) continue
+      if (options.minContext !== undefined && (model.limit?.context ?? 0) < options.minContext) continue
+      if (options.excludeDeprecated && model.status === "deprecated") continue
       if (options.query && !matchesListedQuery(provider, model, options.query)) continue
 
       listed.push(toListedModel(provider, model))
@@ -79,6 +80,8 @@ export function listCatalogModels(snapshot: CatalogSnapshot, options: ListModels
 
 function toListedModel(provider: Provider, model: Model): ListedModel {
   const key = modelKey(provider.id, model.id)
+  const capabilities = modelCapabilities(model)
+  const providerLogoUrl = provider.logoUrl ?? modelsDevLogoUrl(provider.id)
   const item: ListedModel = {
     key,
     value: key,
@@ -86,17 +89,18 @@ function toListedModel(provider: Provider, model: Model): ListedModel {
     providerName: provider.name,
     modelId: model.id,
     name: model.name,
-    capabilities: [...model.capabilities],
+    capabilities,
+    reasoningOptions: model.reasoning_options.map((option) => ({ ...option, values: option.values ? [...option.values] : undefined })),
     provider,
     model,
   }
-  if (provider.logoUrl !== undefined) item.providerLogoUrl = provider.logoUrl
+  if (providerLogoUrl !== undefined) item.providerLogoUrl = providerLogoUrl
   if (model.description !== undefined) item.description = model.description
   if (model.family !== undefined) item.family = model.family
   if (model.modalities !== undefined) item.modalities = model.modalities
-  if (model.limits?.context !== undefined) item.context = model.limits.context
-  if (model.limits?.output !== undefined) item.outputLimit = model.limits.output
-  if (model.deprecated !== undefined || model.status === "deprecated") item.deprecated = Boolean(model.deprecated || model.status === "deprecated")
+  if (model.limit?.context !== undefined) item.context = model.limit.context
+  if (model.limit?.output !== undefined) item.outputLimit = model.limit.output
+  if (model.status === "deprecated") item.deprecated = true
   return item
 }
 
@@ -110,7 +114,7 @@ function matchesListedQuery(provider: Provider, model: Model, query: string): bo
       model.name,
       model.description,
       model.family,
-      ...capabilitySearchTerms(model.capabilities),
+      ...capabilitySearchTerms(modelCapabilities(model)),
       ...(model.modalities?.input ?? []),
       ...(model.modalities?.output ?? []),
     ],

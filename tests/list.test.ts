@@ -42,8 +42,9 @@ describe("catalog", () => {
   it("lists providers and looks up provider/model records", () => {
     const catalog = createCatalog(fixtureSnapshot)
 
-    expect(catalog.getProvider("anthropic")?.logoUrl).toBe("https://models.dev/logos/anthropic.svg")
+    expect(catalog.getProvider("anthropic")?.logoUrl).toBeUndefined()
     expect(catalog.getModel("anthropic", "claude-sonnet-4")?.name).toBe("Claude Sonnet 4")
+    expect(catalog.getModel("anthropic", "claude-sonnet-4")?.reasoning_options).toEqual([{ type: "effort", values: ["low", "medium", "high"] }])
     expect(catalog.getModel("anthropic", "anthropic/claude-sonnet-4")?.name).toBe("Claude Sonnet 4")
     expect(catalog.listProviders({ query: "open" }).map((p) => p.id)).toEqual(["openai"])
   })

@@ -104,7 +104,12 @@ function ollamaModelInput(model: OllamaCliModel): ModelInput {
     id: model.id,
     name: model.name,
     family: modelFamily(model.id),
-    capabilities: ["open_weights", "temperature", "tool_call"],
+    attachment: false,
+    reasoning: false,
+    tool_call: true,
+    structured_output: false,
+    temperature: true,
+    open_weights: true,
     modalities: { input: ["text"], output: ["text"] },
   }
 }

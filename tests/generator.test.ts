@@ -15,13 +15,14 @@ describe("generator context", () => {
 
     ctx.addProvider({ id: "gateway", name: "Gateway", models: [{ id: "fast", name: "Fast" }] })
     ctx.updateProvider("gateway", { logoUrl: "https://example.com/logo.svg" })
-    ctx.updateModel("gateway", "fast", { capabilities: ["reasoning"], limits: { context: 128000 } })
+    ctx.updateModel("gateway", "fast", { reasoning: true, reasoning_options: [{ type: "effort", values: ["low", "high"] }], limit: { context: 128000 } })
     ctx.addModel("gateway", { id: "cheap", name: "Cheap" })
     ctx.removeModel("gateway", "cheap")
 
     const models = createCatalog(snapshot).listModels()
     expect(snapshot.providers.gateway?.logoUrl).toBe("https://example.com/logo.svg")
-    expect(snapshot.providers.gateway?.models.fast?.capabilities).toEqual(["reasoning"])
+    expect(snapshot.providers.gateway?.models.fast).toMatchObject({ reasoning: true, limit: { context: 128000 } })
+    expect(snapshot.providers.gateway?.models.fast?.reasoning_options).toEqual([{ type: "effort", values: ["low", "high"] }])
     expect(models.map((model) => model.key)).toEqual(["gateway/fast"])
   })
 
