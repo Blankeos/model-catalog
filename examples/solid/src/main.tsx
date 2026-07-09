@@ -18,13 +18,11 @@ const initialKeys: Record<string, string> = {
   openai: "sk-fake-openai",
   anthropic: "sk-fake-anthropic",
 }
-const initialEnabledProviderIds = new Set(Object.entries(initialKeys).filter(([, value]) => value.trim()).map(([providerId]) => providerId))
 
 function App() {
   const [catalog, setCatalog] = createSignal<Catalog>(initialCatalog)
   const [isRefreshing, setIsRefreshing] = createSignal(false)
   const [apiKeys, setApiKeys] = createStore<Record<string, string>>(initialKeys)
-  const [enabledProviderIds, setEnabledProviderIds] = createSignal<ReadonlySet<string>>(initialEnabledProviderIds)
   const [providerSearch, setProviderSearch] = createSignal("")
 
   const refreshCatalog = async () => {
@@ -41,21 +39,11 @@ function App() {
   }
 
   const providers = createMemo(() => catalog().listProviders())
-  const visibleProviders = createMemo(() => {
-    const query = normalizeSearch(providerSearch())
-    if (!query) return providers()
-    const tokens = query.split(/\s+/)
-
-    return providers().filter((provider) => {
-      const haystack = `${provider.id} ${provider.name} ${provider.provider.api ?? ""} ${provider.provider.doc ?? ""}`.toLowerCase()
-      return tokens.every((token) => haystack.includes(token))
-    })
-  })
+  const visibleProviders = createMemo(() => catalog().listProviders({ query: providerSearch() }))
   const immediateProviderConfigs = createMemo<ProviderConfig[]>(
     (previous) => {
-      const enabled = enabledProviderIds()
       const next = providers().map((provider, index) => {
-        const hasApiKey = enabled.has(provider.id)
+        const hasApiKey = Boolean(apiKeys[provider.id]?.trim())
         const current = previous?.[index]
         if (current?.id === provider.id && current.hasApiKey === hasApiKey) return current
 
@@ -106,17 +94,7 @@ function App() {
   })
 
   const updateApiKey = (providerId: string, value: string) => {
-    const wasEnabled = Boolean(apiKeys[providerId]?.trim())
-    const isEnabled = Boolean(value.trim())
     setApiKeys(providerId, value)
-    if (wasEnabled !== isEnabled) {
-      setEnabledProviderIds((current) => {
-        const next = new Set(current)
-        if (isEnabled) next.add(providerId)
-        else next.delete(providerId)
-        return next
-      })
-    }
   }
 
   const enabledCount = () => enabledProviders().length
@@ -224,10 +202,6 @@ function readSnapshot() {
 function writeSnapshot(snapshot: CatalogSnapshot) {
   if (typeof window === "undefined") return
   window.localStorage.setItem(snapshotStorageKey, JSON.stringify(snapshot))
-}
-
-function normalizeSearch(value: string) {
-  return value.toLowerCase().trim()
 }
 
 render(() => <App />, document.getElementById("root")!)

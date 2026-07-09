@@ -5,7 +5,6 @@ import {
   createSignal,
   For,
   on,
-  onMount,
   Show,
   type Accessor,
 } from "solid-js"
@@ -76,11 +75,6 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
   const [search, setSearch] = createSignal("")
   const [providerFilter, setProviderFilter] = createSignal<Set<string>>(new Set())
   const [scrollEl, setScrollEl] = createSignal<HTMLDivElement | null>(null)
-  const [allowThinkingChange, setAllowThinkingChange] = createSignal(false)
-
-  onMount(() => {
-    window.setTimeout(() => setAllowThinkingChange(true), 80)
-  })
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -342,11 +336,10 @@ export function ChatModelSelector(props: ChatModelSelectorProps) {
       <Show when={thinkingOptions().length > 0}>
         <Select<string>
           options={thinkingValues()}
-          defaultValue={selectedThinking()}
+          value={selectedThinking() ?? null}
           onChange={(value) => {
-            if (!allowThinkingChange()) return
             if (!value || value === selectedThinking()) return
-            window.setTimeout(() => onThinkingChange(value), 0)
+            onThinkingChange(value)
           }}
           itemComponent={(props) => <SelectItem item={props.item}>{thinkingLabelByValue().get(props.item.rawValue) ?? props.item.rawValue}</SelectItem>}
         >

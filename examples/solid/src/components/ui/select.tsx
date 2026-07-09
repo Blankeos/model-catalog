@@ -43,12 +43,13 @@ export const SelectTrigger = <T extends ValidComponent = "button">(
 
 type SelectContentProps<T extends ValidComponent = "div"> = SelectPrimitive.SelectContentProps<T> & {
   class?: string
+  children?: any
 }
 
 export const SelectContent = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, SelectContentProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as SelectContentProps, ["class"])
+  const [local, others] = splitProps(props as SelectContentProps, ["class", "children"])
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
@@ -60,7 +61,7 @@ export const SelectContent = <T extends ValidComponent = "div">(
         )}
         {...others}
       >
-        <SelectPrimitive.Listbox />
+        {local.children ?? <SelectPrimitive.Listbox />}
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   )
