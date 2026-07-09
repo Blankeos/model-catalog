@@ -4,6 +4,10 @@ A tiny JS/TS library and CLI for building AI model catalogs and listing/filterin
 
 Fetch [models.dev](https://models.dev/) once. Add custom generators. Store the snapshot anywhere. Render the model list your app wants.
 
+## Demo
+
+<video src="./_docs/demo.mp4" controls muted playsinline width="100%"></video>
+
 ## Why
 
 - Powered by `models.dev`.
@@ -126,7 +130,9 @@ const companyGateway = defineGenerator({
           name: "Fast",
           attachment: false,
           reasoning: true,
-          reasoning_options: [{ type: "effort", values: ["low", "medium", "high"] }],
+          reasoning_options: [
+            { type: "effort", values: ["low", "medium", "high"] },
+          ],
           tool_call: true,
           structured_output: true,
           temperature: true,
