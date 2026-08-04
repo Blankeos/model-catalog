@@ -1,10 +1,10 @@
 {
   "name": "model-catalog",
-  "version": "0.0.1",
+  "version": "0.1.2",
   "description": "A tiny JS/TS library and CLI for building AI model catalogs and listing BYOK-available models.",
   "type": "module",
   "license": "MIT",
-  "author": "Blankeos (Carlo Taleon)",
+  "author": "Blankeos",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/blankeos/model-catalog.git"
@@ -13,78 +13,53 @@
   "bugs": {
     "url": "https://github.com/blankeos/model-catalog/issues"
   },
-  "sideEffects": false,
-  "engines": {
-    "node": ">=20.10"
-  },
+  "files": [
+    "dist"
+  ],
   "bin": {
     "model-catalog": "./dist/cli.js"
-  },
-  "publishConfig": {
-    "access": "public"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./package.json": "./package.json"
+      "import": "./dist/index.js"
+    }
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "changeset": "changeset",
-    "ci": "bun run validate",
-    "lint": "bun run typecheck",
-    "pack:check": "bun pm pack --dry-run",
-    "prepack": "bun run build",
-    "publish-ci": "bun run validate && changeset publish",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "typecheck:examples": "bun run typecheck:examples:solid && bun run typecheck:examples:react",
-    "typecheck:examples:solid": "tsc -p examples/solid/tsconfig.json --noEmit",
-    "typecheck:examples:react": "tsc -p examples/react/tsconfig.json --noEmit",
-    "dev:example:solid": "vite --config examples/solid/vite.config.ts --host 127.0.0.1",
-    "dev:example:react": "vite --config examples/react/vite.config.ts --host 127.0.0.1",
-    "build:example:solid": "vite build --config examples/solid/vite.config.ts",
-    "build:example:react": "vite build --config examples/react/vite.config.ts",
-    "build:example:snapshot": "node dist/cli.js refresh --out examples/catalog-snapshot.json",
+    "check": "bun run typecheck && bun run test",
+    "ci": "bun run typecheck && bun run typecheck:examples && bun run test && bun run build",
+    "dev": "tsc -p tsconfig.json --watch",
+    "dev:example:react": "bun run --cwd examples/react dev",
+    "dev:example:solid": "bun run --cwd examples/solid dev",
     "test": "vitest run",
-    "validate": "bun run typecheck && bun run typecheck:examples && bun run test && bun run build && bun run pack:check"
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:examples": "bun run --cwd examples/react typecheck && bun run --cwd examples/solid typecheck",
+    "build:example:snapshot": "node dist/cli.js refresh --out examples/catalog-snapshot.json",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "bun run ci && changeset publish"
   },
   "keywords": [
     "ai",
-    "llm",
-    "models.dev",
+    "models",
     "catalog",
-    "byok"
+    "byok",
+    "models.dev",
+    "cli"
   ],
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.2",
     "@changesets/cli": "^2.29.8",
-    "@kobalte/core": "^0.13.11",
-    "@radix-ui/react-popover": "^1.1.15",
-    "@radix-ui/react-select": "^2.3.3",
-    "@tailwindcss/vite": "^4.3.2",
-    "@tanstack/react-virtual": "^3.13.12",
-    "@tanstack/solid-virtual": "^3.13.12",
     "@types/node": "^22.10.2",
-    "@types/react": "^19.0.2",
-    "@types/react-dom": "^19.0.2",
-    "@vitejs/plugin-react": "^4.3.4",
-    "clsx": "^2.1.1",
-    "flexsearch": "^0.8.212",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "solid-js": "^1.9.5",
-    "tailwindcss": "^4.3.2",
-    "tailwind-merge": "^3.6.0",
     "typescript": "^5.7.2",
-    "vite": "^6.0.7",
-    "vite-plugin-solid": "^2.11.0",
     "vitest": "^4.1.10"
   }
 }
