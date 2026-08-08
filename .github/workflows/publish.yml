@@ -20,6 +20,8 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
+      - run: bun install --cwd examples/react --frozen-lockfile
+      - run: bun install --cwd examples/solid --frozen-lockfile
       - run: bun run ci
 
       - name: Create Release Pull Request or Publish
