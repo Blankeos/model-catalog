@@ -1,5 +1,11 @@
 # model-catalog
 
+## 0.1.3
+
+### Patch Changes
+
+- [`8647df0`](https://github.com/Blankeos/model-catalog/commit/8647df0d174b01e236b81acc816b7a7d25fc0bb7) Thanks [@Blankeos](https://github.com/Blankeos)! - feat: removed 'api key' and use 'isConfigured' instead
+
 ## 0.0.1
 
 ### Patch Changes
