@@ -7,11 +7,11 @@
   "author": "Blankeos",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/blankeos/model-catalog.git"
+    "url": "https://github.com/Blankeos/model-catalog"
   },
-  "homepage": "https://github.com/blankeos/model-catalog#readme",
+  "homepage": "https://github.com/Blankeos/model-catalog#readme",
   "bugs": {
-    "url": "https://github.com/blankeos/model-catalog/issues"
+    "url": "https://github.com/Blankeos/model-catalog/issues"
   },
   "files": [
     "dist"
